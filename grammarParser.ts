@@ -8,11 +8,13 @@ import * as
     fs
 from 'fs';
 
+const debugMode = true;
+
 const builtInTerminals = {
     '<newline>': {
         type: `literal`,
         name: `NewLine`,
-        string: `\n`
+        value: `\n`
     },
     '<eof>': {
         type: `eof`,
@@ -25,11 +27,11 @@ const grammarSource: string = fs.readFileSync(`./language.grammar`, `utf8`),
         productions: []
     };
 
+/* parse `language.grammar` file and populate `grammar` object */
 let currentProduction = null,
-    currentDerivations = [];
-    
-let lines = grammarSource.split(`\n`);
-
+    currentDerivations = [],
+    lines = grammarSource.split(`\n`);
+  
 lines.map((line, i) => {
     
     if (/^[a-z]+$/.test(line.trim()) || i === lines.length - 1) {
@@ -55,7 +57,7 @@ lines.map((line, i) => {
                 let raw = target.replace(/"/g, ``);
                 currentDerivations.push({
                     type: `literal`,
-                    name: `Literal_${raw}`,
+                    name: `Literal_${raw.replace(/ /g, `_`)}`,
                     value: raw
                 });
             } else if (target.startsWith(`<`)) {
@@ -70,4 +72,14 @@ lines.map((line, i) => {
     }
 });
 
-console.log(JSON.stringify(grammar));
+debugMode && console.log(JSON.stringify(grammar, null, 4)); // ifs are for losers
+
+/* generate a parser for the language */
+
+let sc = ``,
+    { productions } = grammar;
+
+productions.map((production) => {
+    sc += `const parse${production.name} = () => {\n`;
+});
+
