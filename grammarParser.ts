@@ -1,5 +1,7 @@
 /**
+ *
  * Simple "parser" for the language's grammar's language.
+ *
  */
 
 import * as 
@@ -11,6 +13,10 @@ const builtInTerminals = {
         type: `literal`,
         name: `NewLine`,
         string: `\n`
+    },
+    '<eof>': {
+        type: `eof`,
+        name: `EndOfFile`
     }
 };
 
