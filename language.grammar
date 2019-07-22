@@ -1,0 +1,7 @@
+program
+    |statement <newline> statement
+    |statement
+    
+statement
+    |"foo"
+    |"bar"
