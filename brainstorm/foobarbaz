@@ -1,0 +1,8 @@
+character
+number
+symbol
+reference
+
+ref
+
+potential/live variables? only "derefed" after "resolve" or "update"

@@ -1,7 +1,7 @@
-program
-    |statement <newline> statement
-    |statement <eof>
+Program
+    |Statement <newline> Statement
+    |Statement <eof>
 
-statement
+Statement
     |"foo"
     |"bar"
