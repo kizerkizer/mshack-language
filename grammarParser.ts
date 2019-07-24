@@ -10,12 +10,15 @@ from 'fs';
 
 const debugMode = false;
 
+const parserDebugMode = true;
+
 const builtInTerminals = {
     '<newline>': {
         type: `literal`,
         name: `NewLine`,
         value: String.raw`\\n`,
         parseFn: `function parseNewLine () {
+            ${parserDebugMode ? `console.log(\`trying <newline>\`);\n` : ``} 
             if (source[index + scout] === \`\\n\`) {
                 scout++;
                 return true;
@@ -28,6 +31,7 @@ const builtInTerminals = {
         name: `EndOfFile`,
         value: null,
         parseFn: `function parseEndOfFile () {
+            ${parserDebugMode ? `console.log(\`trying <eof>\`);\n` : ``} 
             if (index === source.length) {
                 return true;
             }
@@ -39,6 +43,7 @@ const builtInTerminals = {
         name: `Space`,
         value: ` `,
         parseFn: `function parseSpace () {
+            ${parserDebugMode ? `console.log(\`trying <space>\`, index, scout);\n` : ``} 
             if (source[index + scout] === \` \`) {
                 scout++;
                 return true;
@@ -155,6 +160,7 @@ productions.map((production) => {
         entryFunctionName = getParseFnName(production.name);
     }
     sc += `const ${getParseFnName(production.name)} = () => {\n`;
+    parserDebugMode && (sc += `    console.log(\`trying ${production.name}\`);\n`);
     sc += `    if (index >= source.length) return false;\n`
     production.derivations.map((derivation) => {
         sc += `    if (\n`;
@@ -173,8 +179,11 @@ productions.map((production) => {
             }
         });
         sc += `        ` + clauses.join(` &&\n        `);
-        sc += `\n    ) {\n        ${scs.successfulParse}\n    }\n`;
+        sc += `\n    ) {\n`;
+        parserDebugMode && (sc += `console.log(\`parsed ${production.name}\`);\n`);
+        sc += `${scs.successfulParse}\n    }\n`;
     });
+    parserDebugMode && (sc += `    console.log(\`no parsed ${production.name}\`);\n`);
     sc += `    ${scs.failedParse}\n`;
     sc += `};\n\n`;
 });
@@ -182,7 +191,10 @@ productions.map((production) => {
 sc += `// begin literals\n`;
 literals.map((l) => {
     sc +=  `function parse${l.name} () {\n`;
-    sc += `    if (source.slice(index + scout, ${l.value.length}) === \`${l.value}\`) {\n`;
+    if (parserDebugMode) {
+        sc += `    console.log(\`trying literal "${l.name}"\`, index, scout);`;
+    }
+    sc += `    if (source.slice(index + scout, index + scout + ${l.value.length}) === \`${l.value}\`) {\n`;
     sc += `        scout += ${l.value.length}; return true;\n    }\n`;
     sc += `    return false;\n}\n\n`;
 });
