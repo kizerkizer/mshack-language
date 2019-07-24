@@ -1,9 +1,8 @@
-import * as
-    tokenizer
-from './tokenizer';
+import { parse } from './parser.generated';
 
 const main = () => {
-    // TODO
+    let code = `foo also foo also bar also foo`;
+    parse(code) ? console.log(`valid`) : console.log(`invalid`);
 };
 
 main();

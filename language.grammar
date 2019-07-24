@@ -1,6 +1,5 @@
-Program
-    |Statement <newline> Statement
-    |Statement <eof>
+$Program
+    |Statement <space> "also" <space> Statement
 
 Statement
     |"foo"
