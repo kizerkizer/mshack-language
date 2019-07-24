@@ -1,5 +1,5 @@
 $Program
-    |Statement <space> "also" <space> $Program
+    |Statement <whitespace> "also" <whitespace> $Program
     |<eof>
 
 Statement

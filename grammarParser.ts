@@ -50,6 +50,24 @@ const builtInTerminals = {
             }
             return false;
         }`
+    },
+    '<whitespace>': {
+        type: `ws`,
+        name: `Whitespace`,
+        value: null,
+        parseFn: `function parseWhitespace () {
+            ${parserDebugMode ? `console.log(\`trying <whitespace>\`, index, scout);\n` : ``} 
+            let i;
+            for (i = 0; index + scout + i < source.length; i++) {
+                if (source[index + scout + i] === \` \` || source[index + scout + i] === \`\\t\` || source[index + scout + i] === \`\\n\`) {
+                    // let loop continue
+                } else {
+                    break;
+                }
+            }
+            scout += i;
+            return true;
+        }`
     }
 };
 
@@ -166,7 +184,7 @@ productions.map((production) => {
         sc += `    if (\n`;
         let clauses = [];
         derivation.map((to) => {
-            if (to.type === `literal` || to.type === `eof`) {
+            if (to.type === `literal` || to.type === `eof` || to.type === `ws`) {
                 clauses.push(`parse${to.name}()`);
                 to.type === `literal`
                     && builtInTerminals[`<${to.name.toLowerCase()}>`] === undefined
