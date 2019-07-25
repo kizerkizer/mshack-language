@@ -4,7 +4,8 @@ const main = () => {
     let code = `foo
     also
        bar`;
-    parse(code) ? console.log(`valid`) : console.log(`invalid`);
+    let result = parse(code);
+    console.log(JSON.stringify(result, null, 4));
 };
 
 main();
