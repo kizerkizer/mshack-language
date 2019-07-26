@@ -5,8 +5,8 @@
 $Program
     |<whitespace> StatementList <whitespace> <eof>
 
-;Block
-;    |<whitespace> "block_begin" <whitespace> StatementList <whitespace> "block_end" <whitespace>
+Block
+    |<whitespace> "block_begin" StatementList "block_end"
 
 StatementList
     |StatementAndNewline{*}
@@ -19,7 +19,7 @@ Statement
     |"cancel" <space> Action
     |"pause" <space> Action
     |"resume" <space> Action
-;    |Block
+    |Block
 
 Action
     |"__burn_bridges"

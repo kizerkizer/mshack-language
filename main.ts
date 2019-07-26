@@ -6,9 +6,11 @@ let code2 = `
     do __burn_bridges
 do __nothing
 pause __burn_bridges
- do __fight_fire
-do __nothing
-do __fight_fire
+block_begin
+    do __fight_fire
+    do __nothing
+    do __fight_fire
+block_end
 cancel __fight_fire
 resume __burn_bridges
 cancel __nothing
