@@ -1,7 +1,27 @@
-$Program
-    |Statement <whitespace> "also" <whitespace> $Program
-    |<eof>
 
+;   This specifies the grammar of the language.
+;   Use grammarParserGen.ts to generate parser.generated.ts (the parser).
+
+$Program
+    |<whitespace> StatementList <whitespace> <eof>
+
+;Block
+;    |<whitespace> "block_begin" <whitespace> StatementList <whitespace> "block_end" <whitespace>
+
+StatementList
+    |StatementAndNewline{*}
+
+StatementAndNewline
+    |<whitespace> Statement <newline> <whitespace>
+    
 Statement
-    |"foo"
-    |"bar"
+    |"do" <space> Action
+    |"cancel" <space> Action
+    |"pause" <space> Action
+    |"resume" <space> Action
+;    |Block
+
+Action
+    |"__burn_bridges"
+    |"__fight_fire"
+    |"__nothing"

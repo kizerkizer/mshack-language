@@ -1,6 +1,6 @@
 /**
  *
- * Simple "parser" for the language's grammar's language.
+ * Simple "parser" and parser generator for the language's grammar's language.
  *
  */
 
@@ -8,7 +8,7 @@ import * as
     fs
 from 'fs';
 
-const debugMode = false;
+const debugMode = true;
 
 const parserDebugMode = true;
 
@@ -31,7 +31,7 @@ const builtInTerminals = {
         name: `EndOfFile`,
         value: null,
         parseFn: `function parseEndOfFile () {
-            ${parserDebugMode ? `console.log(\`trying <eof>\`);\n` : ``} 
+            ${parserDebugMode ? `console.log(\`trying <eof>\`, index, scout, source.length);\n` : ``} 
             if (index === source.length) {
                 return node(\`EndOfFile\`, null, []);
             }
@@ -57,7 +57,7 @@ const builtInTerminals = {
         value: null,
         parseFn: `function parseWhitespace () {
             ${parserDebugMode ? `console.log(\`trying <whitespace>\`, index, scout);\n` : ``} 
-            let i;
+            let i, epsilon;
             for (i = 0; index + scout + i < source.length; i++) {
                 if (source[index + scout + i] === \` \` || source[index + scout + i] === \`\\t\` || source[index + scout + i] === \`\\n\`) {
                     // let loop continue
@@ -68,6 +68,12 @@ const builtInTerminals = {
             scout += i;
             return node(\`Whitespace\`, source.slice(index + scout - i, index + scout), []);
         }`
+    },
+    '<empty>': {
+        type: 'literal',
+        name: `Empty`,
+        value: ``,
+        parseFn: `function parseEmpty () { return node (\`Empty\`, \`\`, []);}\n`
     }
 };
 
@@ -78,7 +84,7 @@ const grammarSource: string = fs.readFileSync(`./language.grammar`, `utf8`),
 
 let currentProduction = null,
     currentDerivations = [],
-    lines = grammarSource.split(`\n`);
+    lines = grammarSource.replace(/;[^\n]*\n/g, `\n`).split(`\n`);
 
 const pushCurrentProduction = () => {
     grammar.productions.push({
@@ -89,7 +95,7 @@ const pushCurrentProduction = () => {
     currentProduction = null;
     currentDerivations = [];
 }
-  
+
 /* parse `language.grammar` file and populate `grammar` object */
 lines.map((line, i) => {
 
@@ -112,19 +118,31 @@ lines.map((line, i) => {
 
         line.replace(`    |`, ``).trim().split(` `).map((target) => {
             debugMode && console.log(`   [target] ${target}`);
+            
+            // handle quantifier
+            let q = null;
+            if (q = target.match(/{([*|+])}/)) {
+                debugMode && console.log(`quantifier ${q[1]}`);
+                q = q[1];
+            }
+            target = target.replace(/{([*|+])}/, ``);
+            
+            // literal, non-terminal, built-in?
             if (target.startsWith(`"`)) {
                 let raw = target.replace(/"/g, ``);
                 to.push({
                     type: `literal`,
                     name: `Literal_${raw.replace(/ /g, `_`)}`,
-                    value: raw
+                    value: raw,
+                    quantifier: q 
                 });
             } else if (target.startsWith(`<`)) {
-                to.push(builtInTerminals[target]);
+                to.push(Object.assign({}, builtInTerminals[target], { quantifier: q }));
             } else {
                 to.push({
                     type: `nonterminal`,
-                    productionName: target
+                    productionName: target,
+                    quantifier: q  
                 });
             }
         });
@@ -184,6 +202,33 @@ Object.values(builtInTerminals).map((b) => {
 });
 sc += `// end built-ins\n\n`;
 
+sc +=
+`function quantifyOnce (parseFn) {
+    return parseFn();
+};\n`
+
+sc +=
+`function quantifyZeroOrMore (parseFn) {
+    return quantifyAtLeast(0, parseFn);
+};\n`
+
+sc +=
+`function quantifyOneOrMore (parseFn) {
+    return quantifyAtLeast(1, parseFn);
+};\n`
+
+sc +=
+`function quantifyAtLeast (n, parseFn) {
+    let nodes = [], currentNode = null;
+    while (currentNode = parseFn()) {
+        nodes.push(currentNode);
+    }
+    if (nodes.length >= n) {
+        return node(\`List\`, null, nodes);
+    }
+    return false;
+};\n\n`
+
 let entryFunctionName: string;
 
 productions.map((production) => {
@@ -195,6 +240,7 @@ productions.map((production) => {
     }
     sc += `const ${getParseFnName(production.name)} = () => {\n`;
     parserDebugMode && (sc += `    console.log(\`trying ${production.name}\`);\n`);
+        
     sc += `    if (index >= source.length) return false;\n`
     sc += `    const temp: { [key: string]: any } = {}; // holds $0, $1, ... variables \n\n`;
     production.derivations.map((derivation) => {
@@ -203,13 +249,21 @@ productions.map((production) => {
         sc += `    if (\n`;
         let clauses = [];
         derivation.map((to, toi) => {
+            let quantifierFunction = `quantifyOnce`;
+            if (to.quantifier === `*`) {
+                quantifierFunction = `quantifyZeroOrMore`
+            }
+            if (to.quantifier === `+`) {
+                quantifierFunction = `quantifyOneOrMore`
+            }
+
             if (to.type === `literal` || to.type === `eof` || to.type === `ws`) {
-                clauses.push(`(temp.\$${toi} = parse${to.name}())`);
+                clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.name}))`);
                 to.type === `literal`
                     && builtInTerminals[`<${to.name.toLowerCase()}>`] === undefined
                     && literals.push(to);
             } else if (to.type === `nonterminal`) {
-                clauses.push(`(temp.\$${toi} = parse${to.productionName}())`);
+                clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.productionName}))`);
             } else {
                 debugMode && console.log(`Invalid derivation:`)
                 debugMode && console.log(JSON.stringify(to, null, 4));
@@ -237,7 +291,7 @@ literals.map((l) => {
 });
 sc += `// end literals\n\n`;
 
-sc += `const parse: (sourceCode: string) => any = (sourceCode: string) => { source = sourceCode; return ${entryFunctionName}(); }\n`
+sc += `const parse: (sourceCode: string) => any = (sourceCode: string) => { source = sourceCode;  let result = ${entryFunctionName}(); ${parserDebugMode ? `console.log(\`\\n---\\n\`, source.slice(0, index + scout));` : ``}\nreturn result;}\n`
 sc += `export { parse }\n\n`
 
 sc += `// end generated code`;
