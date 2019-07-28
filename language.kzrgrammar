@@ -6,7 +6,7 @@ $Program
     |<whitespace> StatementList <whitespace> <eof>
 
 Block
-    |<whitespace> "block_begin" StatementList "block_end"
+    |<whitespace> ("block_begin") StatementList ("block_end")
 
 StatementList
     |StatementAndNewline{*}

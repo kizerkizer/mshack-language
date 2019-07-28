@@ -77,7 +77,7 @@ const builtInTerminals = {
     }
 };
 
-const grammarSource: string = fs.readFileSync(`./language.grammar`, `utf8`),
+const grammarSource: string = fs.readFileSync(`./language.kzrgrammar`, `utf8`),
     grammar = {
         productions: []
     };
@@ -118,7 +118,16 @@ lines.map((line, i) => {
 
         line.replace(`    |`, ``).trim().split(` `).map((target) => {
             debugMode && console.log(`   [target] ${target}`);
-            
+
+            // handle presence target
+            let matchResult = null,
+              isPresence = false;
+            if (matchResult = target.match(/\(([^\)]+)\)/)) {
+              debugMode && console.log(`presence target ${target} detected`);
+              target = target.replace(/\(([^\)]+)\)/, matchResult[1]);
+              isPresence = true;
+            }
+
             // handle quantifier
             let q = null;
             if (q = target.match(/{([*|+])}/)) {
@@ -134,7 +143,8 @@ lines.map((line, i) => {
                     type: `literal`,
                     name: `Literal_${raw.replace(/ /g, `_`)}`,
                     value: raw,
-                    quantifier: q 
+                    quantifier: q,
+                    isPresence
                 });
             } else if (target.startsWith(`<`)) {
                 to.push(Object.assign({}, builtInTerminals[target], { quantifier: q }));
@@ -142,11 +152,12 @@ lines.map((line, i) => {
                 to.push({
                     type: `nonterminal`,
                     productionName: target,
-                    quantifier: q  
+                    quantifier: q,
+                    isPresence
                 });
             }
         });
-        
+
         currentDerivations.push(to);
     } else if (line === `\n` || line === ``) {
         // ignore
@@ -248,7 +259,8 @@ productions.map((production) => {
         //sc += `let ${derivation.map((_, i) => `\$${i}`)};\n`;
         sc += `    if (\n`;
         let clauses = [];
-        derivation.map((to, toi) => {
+        let toi = 0;
+        derivation.map((to) => {
             let quantifierFunction = `quantifyOnce`;
             if (to.quantifier === `*`) {
                 quantifierFunction = `quantifyZeroOrMore`
@@ -258,21 +270,32 @@ productions.map((production) => {
             }
 
             if (to.type === `literal` || to.type === `eof` || to.type === `ws`) {
-                clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.name}))`);
+                if (!to.isPresence) {
+                    clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.name}))`);
+                } else {
+                    clauses.push(`/* presence */ (${quantifierFunction}(parse${to.name}))`);
+                }
                 to.type === `literal`
                     && builtInTerminals[`<${to.name.toLowerCase()}>`] === undefined
                     && literals.push(to);
             } else if (to.type === `nonterminal`) {
-                clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.productionName}))`);
+                if (!to.isPresence) {
+                    clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.productionName}))`);
+                } else {
+                    clauses.push(`/* presence */ (${quantifierFunction}(parse${to.productionName}))`);
+                }
             } else {
                 debugMode && console.log(`Invalid derivation:`)
                 debugMode && console.log(JSON.stringify(to, null, 4));
+            }
+            if (!to.isPresence) {
+              toi++;
             }
         });
         sc += `        ` + clauses.join(` &&\n        `);
         sc += `\n    ) {\n`;
         parserDebugMode && (sc += `console.log(\`parsed ${production.name}\`);\n`);
-        sc += `${scs.successfulParse(production.name, derivation.length)}\n    }\n`;
+        sc += `${scs.successfulParse(production.name, toi)}\n    }\n`;
     });
     parserDebugMode && (sc += `    console.log(\`no parsed ${production.name}\`);\n`);
     sc += `    ${scs.failedParse}\n`;
