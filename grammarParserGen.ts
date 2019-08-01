@@ -89,16 +89,17 @@ const pushCurrentProduction = (grammar, ctx) => {
     });
     ctx.currentProduction = null;
     ctx.currentDerivations = [];
-}
+};
 
 const parseLines = (lines) => {
     const grammar = {
         productions: []
     },
-    ctx = {
-        currentProduction: null,
-        currentDerivations: []
-    };
+        ctx = {
+            currentProduction: null,
+            currentDerivations: []
+        };
+    
     /* parse `language.grammar` file and populate `grammar` object */
     lines.map((line, i) => {
 
@@ -111,7 +112,7 @@ const parseLines = (lines) => {
             if (ctx.currentProduction) {
                 pushCurrentProduction(grammar, ctx);
             }
-           
+            
             ctx.currentProduction = line.trim();
         } else if (line.startsWith(`    |`)) {
             
@@ -182,151 +183,156 @@ const parseLines = (lines) => {
 
 let grammar = parseLines(lines);
 
-
-
-/* generate a parser for the language */
-let sc = ``, // source code
-    { productions } = grammar,
-    scs = {
-        successfulParse: (name, numChildren) => {
-          return `/* success */ index += scout; scout = 0; return node(\`${name}\`, null, [${new Array(numChildren).fill('').map((_, i) => `temp.\$${i}`).join(`, `)}]);\n`
+const generateParser = (grammar) => {
+    /* generate a parser for the language */
+    let sc = ``, // source code
+        { productions } = grammar,
+        scs = {
+            successfulParse: (name, numChildren) => {
+            return `/* success */ index += scout; scout = 0; return node(\`${name}\`, null, [${new Array(numChildren).fill('').map((_, i) => `temp.\$${i}`).join(`, `)}]);\n`
+            },
+            failedParse: `/* fail */ scout = 0; return false;`,
         },
-        failedParse: `/* fail */ scout = 0; return false;`,
-    },
-    literals = [];
-sc += `// generated ${new Date()}\n\n`;
+        literals = [];
+    sc += `// generated ${new Date()}\n\n`;
 
-sc += `
-function node (name, value, children) {
-    return {
-        name,
-        value,
-        children
-    };
-}\n\n`;
+    sc += `
+    function node (name, value, children) {
+        return {
+            name,
+            value,
+            children
+        };
+    }\n\n`;
 
-sc += `const preRoot = {
-    root: null
-};\n\n`;
+    sc += `const preRoot = {
+        root: null
+    };\n\n`;
 
 
-const getParseFnName = (productionName) => `parse${productionName}`;
+    const getParseFnName = (productionName) => `parse${productionName}`;
 
-sc += `let source: string, index = 0, scout = 0;\n\n`;
+    sc += `let source: string, index = 0, scout = 0;\n\n`;
 
-sc += `// begin built-ins\n`
-Object.values(builtInTerminals).map((b) => {
-    if (b.parseFn) {
-        sc += b.parseFn;
-        sc += `\n\n`;
-    }
-});
-sc += `// end built-ins\n\n`;
-
-sc +=
-`function quantifyOnce (parseFn) {
-    return parseFn();
-};\n`
-
-sc +=
-`function quantifyZeroOrMore (parseFn) {
-    return quantifyAtLeast(0, parseFn);
-};\n`
-
-sc +=
-`function quantifyOneOrMore (parseFn) {
-    return quantifyAtLeast(1, parseFn);
-};\n`
-
-sc +=
-`function quantifyAtLeast (n, parseFn) {
-    let nodes = [], currentNode = null;
-    while (currentNode = parseFn()) {
-        nodes.push(currentNode);
-    }
-    if (nodes.length >= n) {
-        return node(\`List\`, null, nodes);
-    }
-    return false;
-};\n\n`
-
-let entryFunctionName: string;
-
-productions.map((production) => {
-    //sc += `/*\n * `;
-    //sc +=  JSON.stringify(production, null, 4).split(`\n`).join(`\n * `);
-    //sc += `\n*/\n`;
-    if (production.isEntryProduction) {
-        entryFunctionName = getParseFnName(production.name);
-    }
-    sc += `const ${getParseFnName(production.name)} = () => {\n`;
-    parserDebugMode && (sc += `    console.log(\`trying ${production.name}\`);\n`);
-        
-    sc += `    if (index >= source.length) return false;\n`
-    sc += `    const temp: { [key: string]: any } = {}; // holds $0, $1, ... variables \n\n`;
-    production.derivations.map((derivation) => {
-        // TODO:
-        //sc += `let ${derivation.map((_, i) => `\$${i}`)};\n`;
-        sc += `    if (\n`;
-        let clauses = [];
-        let toi = 0;
-        derivation.map((to) => {
-            let quantifierFunction = `quantifyOnce`;
-            if (to.quantifier === `*`) {
-                quantifierFunction = `quantifyZeroOrMore`
-            }
-            if (to.quantifier === `+`) {
-                quantifierFunction = `quantifyOneOrMore`
-            }
-
-            if (to.type === `literal` || to.type === `eof` || to.type === `ws`) {
-                if (!to.isPresence) {
-                    clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.name}))`);
-                } else {
-                    clauses.push(`/* presence */ (${quantifierFunction}(parse${to.name}))`);
-                }
-                to.type === `literal`
-                    && builtInTerminals[`<${to.name.toLowerCase()}>`] === undefined
-                    && literals.push(to);
-            } else if (to.type === `nonterminal`) {
-                if (!to.isPresence) {
-                    clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.productionName}))`);
-                } else {
-                    clauses.push(`/* presence */ (${quantifierFunction}(parse${to.productionName}))`);
-                }
-            } else {
-                debugMode && console.log(`Invalid derivation:`)
-                debugMode && console.log(JSON.stringify(to, null, 4));
-            }
-            if (!to.isPresence) {
-              toi++;
-            }
-        });
-        sc += `        ` + clauses.join(` &&\n        `);
-        sc += `\n    ) {\n`;
-        parserDebugMode && (sc += `console.log(\`parsed ${production.name}\`);\n`);
-        sc += `${scs.successfulParse(production.name, toi)}\n    }\n`;
+    sc += `// begin built-ins\n`
+    Object.values(builtInTerminals).map((b) => {
+        if (b.parseFn) {
+            sc += b.parseFn;
+            sc += `\n\n`;
+        }
     });
-    parserDebugMode && (sc += `    console.log(\`no parsed ${production.name}\`);\n`);
-    sc += `    ${scs.failedParse}\n`;
-    sc += `};\n\n`;
-});
+    sc += `// end built-ins\n\n`;
 
-sc += `// begin literals\n`;
-literals.map((l) => {
-    sc += `function parse${l.name} () {\n`;
-    if (parserDebugMode) {
-        sc += `    console.log(\`trying literal "${l.name}"\`, index, scout);\n`;
-    }
-    sc += `    if (source.slice(index + scout, index + scout + ${l.value.length}) === \`${l.value}\`) {\n`;
-    sc += `        scout += ${l.value.length}; return node(\`${l.name}\`, \`${l.value}\`, []);\n    }\n`;
-    sc += `    return false;\n}\n\n`;
-});
-sc += `// end literals\n\n`;
+    sc +=
+    `function quantifyOnce (parseFn) {
+        return parseFn();
+    };\n`
 
-sc += `const parse: (sourceCode: string) => any = (sourceCode: string) => { source = sourceCode;  let result = ${entryFunctionName}(); ${parserDebugMode ? `console.log(\`\\n---\\n\`, source.slice(0, index + scout));` : ``}\nreturn result;}\n`
-sc += `export { parse }\n\n`
+    sc +=
+    `function quantifyZeroOrMore (parseFn) {
+        return quantifyAtLeast(0, parseFn);
+    };\n`
 
-sc += `// end generated code`;
-debugMode && console.log(sc);
-fs.writeFileSync(`parser.generated.ts`, sc);
+    sc +=
+    `function quantifyOneOrMore (parseFn) {
+        return quantifyAtLeast(1, parseFn);
+    };\n`
+
+    sc +=
+    `function quantifyAtLeast (n, parseFn) {
+        let nodes = [], currentNode = null;
+        while (currentNode = parseFn()) {
+            nodes.push(currentNode);
+        }
+        if (nodes.length >= n) {
+            return node(\`List\`, null, nodes);
+        }
+        return false;
+    };\n\n`
+
+    let entryFunctionName: string;
+
+    productions.map((production) => {
+        //sc += `/*\n * `;
+        //sc +=  JSON.stringify(production, null, 4).split(`\n`).join(`\n * `);
+        //sc += `\n*/\n`;
+        if (production.isEntryProduction) {
+            entryFunctionName = getParseFnName(production.name);
+        }
+        sc += `const ${getParseFnName(production.name)} = () => {\n`;
+        parserDebugMode && (sc += `    console.log(\`trying ${production.name}\`);\n`);
+            
+        sc += `    if (index >= source.length) return false;\n`
+        sc += `    const temp: { [key: string]: any } = {}; // holds $0, $1, ... variables \n\n`;
+        production.derivations.map((derivation) => {
+            // TODO:
+            //sc += `let ${derivation.map((_, i) => `\$${i}`)};\n`;
+            sc += `    if (\n`;
+            let clauses = [];
+            let toi = 0;
+            derivation.map((to) => {
+                let quantifierFunction = `quantifyOnce`;
+                if (to.quantifier === `*`) {
+                    quantifierFunction = `quantifyZeroOrMore`
+                }
+                if (to.quantifier === `+`) {
+                    quantifierFunction = `quantifyOneOrMore`
+                }
+
+                if (to.type === `literal` || to.type === `eof` || to.type === `ws`) {
+                    if (!to.isPresence) {
+                        clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.name}))`);
+                    } else {
+                        clauses.push(`/* presence */ (${quantifierFunction}(parse${to.name}))`);
+                    }
+                    to.type === `literal`
+                        && builtInTerminals[`<${to.name.toLowerCase()}>`] === undefined
+                        && literals.push(to);
+                } else if (to.type === `nonterminal`) {
+                    if (!to.isPresence) {
+                        clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.productionName}))`);
+                    } else {
+                        clauses.push(`/* presence */ (${quantifierFunction}(parse${to.productionName}))`);
+                    }
+                } else {
+                    debugMode && console.log(`Invalid derivation:`)
+                    debugMode && console.log(JSON.stringify(to, null, 4));
+                }
+                if (!to.isPresence) {
+                toi++;
+                }
+            });
+            sc += `        ` + clauses.join(` &&\n        `);
+            sc += `\n    ) {\n`;
+            parserDebugMode && (sc += `console.log(\`parsed ${production.name}\`);\n`);
+            sc += `${scs.successfulParse(production.name, toi)}\n    }\n`;
+        });
+        parserDebugMode && (sc += `    console.log(\`no parsed ${production.name}\`);\n`);
+        sc += `    ${scs.failedParse}\n`;
+        sc += `};\n\n`;
+    });
+
+    sc += `// begin literals\n`;
+    literals.map((l) => {
+        sc += `function parse${l.name} () {\n`;
+        if (parserDebugMode) {
+            sc += `    console.log(\`trying literal "${l.name}"\`, index, scout);\n`;
+        }
+        sc += `    if (source.slice(index + scout, index + scout + ${l.value.length}) === \`${l.value}\`) {\n`;
+        sc += `        scout += ${l.value.length}; return node(\`${l.name}\`, \`${l.value}\`, []);\n    }\n`;
+        sc += `    return false;\n}\n\n`;
+    });
+    sc += `// end literals\n\n`;
+
+    sc += `const parse: (sourceCode: string) => any = (sourceCode: string) => { source = sourceCode;  let result = ${entryFunctionName}(); ${parserDebugMode ? `console.log(\`\\n---\\n\`, source.slice(0, index + scout));` : ``}\nreturn result;}\n`
+    sc += `export { parse }\n\n`
+
+    sc += `// end generated code`;
+    debugMode && console.log(sc);
+
+    return sc;
+};
+
+let sourceCode = generateParser(grammar);
+
+fs.writeFileSync(`parser.generated.ts`, sourceCode);
