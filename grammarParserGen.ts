@@ -287,7 +287,7 @@ const generateParser = (grammar) => {
         `function quantifyOneOrMore (parseFn) {
             return quantifyAtLeast(1, parseFn);
         };\n`
-
+        
     sc +=
         `function quantifyAtLeast (n, parseFn) {
             let nodes = [], currentNode = null;
@@ -320,12 +320,13 @@ const generateParser = (grammar) => {
             .string(`if (index >= source.length) return false;\n`);
         sc += gen
             .string(`const temp: { [key: string]: any } = {}; // holds $0, $1, ... variables \n\n`);
+            
+        gen.reset();
         
         production.derivations.map((derivation) => {
             // TODO:
             //sc += `let ${derivation.map((_, i) => `\$${i}`)};\n`;
             sc += gen.string(`if (\n`);
-            gen.indent();
             
             let clauses = [];
             let toi = 0;
@@ -340,59 +341,120 @@ const generateParser = (grammar) => {
 
                 if (to.type === `literal` || to.type === `eof` || to.type === `ws`) {
                     if (!to.isPresence) {
-                        clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.name}))`);
+                        clauses.push(
+                            gen
+                                .string(`(`)
+                                .assignE(`(temp.\$${toi}`, `${quantifierFunction}(parse${to.name}))`)
+                                .string(`)`)
+                                .toString()
+                        );
                     } else {
-                        clauses.push(`/* presence */ (${quantifierFunction}(parse${to.name}))`);
+                        clauses.push(
+                            `/* presence */ ` + 
+                            gen
+                                .call(quantifierFunction, [`parse${to.name}`])
+                                .toString()
+                        );
                     }
                     to.type === `literal`
                         && builtInTerminals[`<${to.name.toLowerCase()}>`] === undefined
                         && literals.push(to);
                 } else if (to.type === `nonterminal`) {
                     if (!to.isPresence) {
-                        clauses.push(`(temp.\$${toi} = ${quantifierFunction}(parse${to.productionName}))`);
+                        clauses.push(
+                            gen
+                                .string(`(`)
+                                .assignE(`(temp.\$${toi}`, `${quantifierFunction}(parse${to.productionName}))`)
+                                .string(`)`)
+                                .toString()
+                        );
                     } else {
-                        clauses.push(`/* presence */ (${quantifierFunction}(parse${to.productionName}))`);
+                        clauses.push(
+                            `/* presence */ ` + 
+                            gen
+                                .call(quantifierFunction, [`parse${to.productionName}`])
+                                .toString()
+                        );
                     }
                 } else {
                     debugMode && console.log(`Invalid derivation:`)
                     debugMode && console.log(JSON.stringify(to, null, 4));
                 }
                 if (!to.isPresence) {
-                toi++;
+                    toi++;
                 }
             });
             
-            sc += gen.string(clauses.join(` &&\n        `));
-            sc += gen.string(`\n) {\n`);
+            gen.reset();
+
+            sc += 
+                gen.tab(2).toString() +
+                clauses.join(
+                    gen
+                        .reset()
+                        .string(` &&`)
+                        .nl()
+                        .tab(2)
+                        .toString()
+                );
+            
+            sc += gen
+                .nl()
+                .string(`) {`)
+                .nl();
+            
             parserDebugMode && (sc += `console.log(\`parsed ${production.name}\`);\n`);
             
-            sc += gen.string(`${scs.successfulParse(production.name, toi)}\n}\n`);
-            gen.dedent();
+            sc += gen
+                .string(`${scs.successfulParse(production.name, toi)}\n}\n`);
         });
+        
         parserDebugMode && (sc += gen.string(`console.log(\`no parsed ${production.name}\`);\n`));
-        sc += gen.string(`${scs.failedParse}\n`);
+        
+        sc += gen
+            .string(`${scs.failedParse}`)
+            .nl();
+            
         sc += gen
             .dedent()
             .string(`};`)
             .blankLine();
     });
+    
+    gen.reset();
 
-    sc += `// begin literals\n`;
+    sc += gen
+        .comment(`begin literals`)
+        .nl();
+    
     literals.map((l) => {
-        sc += `function parse${l.name} () {\n`;
+        sc += gen.string(`function parse${l.name} () {`).nl();
+        gen.indent();
+        
         if (parserDebugMode) {
-            sc += `    console.log(\`trying literal "${l.name}"\`, index, scout);\n`;
+            sc += gen.string(`console.log(\`trying literal "${l.name}"\`, index, scout);`).nl();
         }
-        sc += `    if (source.slice(index + scout, index + scout + ${l.value.length}) === \`${l.value}\`) {\n`;
-        sc += `        scout += ${l.value.length}; return node(\`${l.name}\`, \`${l.value}\`, []);\n    }\n`;
-        sc += `    return false;\n}\n\n`;
+        
+        sc += gen.string(`if (source.slice(index + scout, index + scout + ${l.value.length}) === \`${l.value}\`) {`).nl();
+        gen.indent();
+        
+        sc += gen.string(`scout += ${l.value.length}; return node(\`${l.name}\`, \`${l.value}\`, []);`).nl();
+        gen.dedent();
+        
+        sc += gen.string(`}`).nl();
+        sc += gen.string(`return false;`).nl();
+        gen.dedent();
+        
+        sc += gen.string(`}`);
+        sc += gen.blankLine();
     });
-    sc += `// end literals\n\n`;
+    
+    sc += gen.comment(`end literals`).blankLine();
 
-    sc += `const parse: (sourceCode: string) => any = (sourceCode: string) => { source = sourceCode;  let result = ${entryFunctionName}(); ${parserDebugMode ? `console.log(\`\\n---\\n\`, source.slice(0, index + scout));` : ``}\nreturn result;}\n`
-    sc += `export { parse }\n\n`
+    sc += gen.string(`const parse: (sourceCode: string) => any = (sourceCode: string) => { source = sourceCode;  let result = ${entryFunctionName}(); ${parserDebugMode ? `console.log(\`\\n---\\n\`, source.slice(0, index + scout));` : ``}\nreturn result;}`).nl();
+    sc += gen.string(`export { parse }`).blankLine();
 
-    sc += `// end generated code`;
+    sc += gen.comment(`end generated code`).nl();
     debugMode && console.log(sc);
 
     return sc;

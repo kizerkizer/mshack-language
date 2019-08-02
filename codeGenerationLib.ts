@@ -12,19 +12,24 @@ class SourceCodeBuilder {
     }
     
     private addString (str: string) {
-        if (this.representation[this.representation.length - 1] === `\n`) {
+        if (this.representation === ``) {
+            this.currentTabOffset = 0;
             this.tab(this.currentIndentLevel);
         }
+        let i = 0;
         for (let character of str) {
             this.representation += character;
-            if (character === `\n`) {
+            if (character === `\n` && i < str.length - 1) {
                 this.currentTabOffset = 0;
                 this.tab(this.currentIndentLevel);
+            } else if (character === `\n`) {
+                this.currentTabOffset = 0;
             } else {
                 this.currentTabOffset++;
+                this.currentTabOffset = this.currentTabOffset % this.tabWidth;
             }
+            i++;
         }
-        this.currentTabOffset = this.currentTabOffset % this.tabWidth;
     }
      
     string (str: string) {
@@ -96,6 +101,31 @@ class SourceCodeBuilder {
             return this;
         }
         this.representation += ` `.repeat(this.tabWidth - this.currentTabOffset);
+        if (n - 1 === 0) {
+            return this;
+        }
+        console.log(n - 1);
+        this.representation += ` `.repeat(this.tabWidth).repeat(n - 1);
+        return this;
+    }
+    
+    nl () {
+        return this.beginLine();
+    }
+    
+    assignE (key: string, value: string) {
+        this.representation += `${key} = ${value}`
+        return this;
+    }
+    
+    assign (key: string, value: string) {
+        this.assignE(key, value);
+        this.representation += `;`;
+        return this;
+    }
+    
+    call (fnName: string, parameters: string[]) {
+        this.representation += `${fnName}(${parameters.join(`, `)})`;
         return this;
     }
     
@@ -106,6 +136,9 @@ class SourceCodeBuilder {
     
     dedent () {
         this.currentIndentLevel--;
+        if (this.currentIndentLevel < 0) {
+            this.currentIndentLevel = 0;
+        }
         return this;
     }
     
