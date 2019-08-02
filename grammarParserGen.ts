@@ -8,9 +8,36 @@ import * as
     fs
 from 'fs';
 
+import {
+    SourceCodeBuilder
+} from './codeGenerationLib';
+
 const debugMode = true;
 
 const parserDebugMode = true;
+
+const gen: SourceCodeBuilder = new SourceCodeBuilder({
+    tabWidth: 4
+});
+
+/*let test = '';
+
+test += gen
+    .const('foo', 'bar')
+    .beginLine()
+    .indent()
+    .string('foo bar')
+    .beginLine()
+    .string('bar foo')
+    .beginLine()
+    .string('bar foo')
+    .dedent()
+    .beginLine()
+    .string('the end')
+    .blankLine()
+    .function('foo', ['red', 'yellow'], gen.new().let('foo', 'bar').beginLine().string('return foo;').toString());
+
+console.log(test); process.exit();*/
 
 const builtInTerminals = {
     '<newline>': {
@@ -194,34 +221,57 @@ const generateParser = (grammar) => {
             failedParse: `/* fail */ scout = 0; return false;`,
         },
         literals = [];
-    sc += `// generated ${new Date()}\n\n`;
+       
+    sc += gen
+        .reset()
+        .comment(`generated ${new Date()}`)
+        .blankLine();
 
-    sc += `
-    function node (name, value, children) {
-        return {
-            name,
-            value,
-            children
-        };
-    }\n\n`;
+    sc += gen
+        .reset()
+        .function(`node`, [`name`, `value`, `children`], 
+            gen.new().string(
+`return {
+    name,
+    value,
+    children
+};`
+            ).toString())
+        .blankLine();
 
     sc += `const preRoot = {
         root: null
     };\n\n`;
 
-
     const getParseFnName = (productionName) => `parse${productionName}`;
 
-    sc += `let source: string, index = 0, scout = 0;\n\n`;
+    sc += gen
+        .reset()
+        .let(`source: string`, `\`\``)
+        .beginLine()
+        .let(`index: number`, `0`)
+        .beginLine()
+        .let(`scout: number`, `0`)
+        .blankLine();
 
-    sc += `// begin built-ins\n`
+    sc += gen
+        .reset()
+        .comment(`begin built-ins`)
+        .blankLine();
+
     Object.values(builtInTerminals).map((b) => {
         if (b.parseFn) {
             sc += b.parseFn;
-            sc += `\n\n`;
+            sc += gen
+                .reset()
+                .blankLine();
         }
     });
-    sc += `// end built-ins\n\n`;
+    
+    sc += gen
+        .reset()
+        .comment(`end built-ins`)
+        .blankLine();
 
     sc +=
         `function quantifyOnce (parseFn) {
@@ -251,23 +301,32 @@ const generateParser = (grammar) => {
         };\n\n`
 
     let entryFunctionName: string;
+    
+    gen.reset();
 
     productions.map((production) => {
-        //sc += `/*\n * `;
-        //sc +=  JSON.stringify(production, null, 4).split(`\n`).join(`\n * `);
-        //sc += `\n*/\n`;
         if (production.isEntryProduction) {
             entryFunctionName = getParseFnName(production.name);
         }
-        sc += `const ${getParseFnName(production.name)} = () => {\n`;
-        parserDebugMode && (sc += `    console.log(\`trying ${production.name}\`);\n`);
+        
+        sc += gen
+            .string(`const ${getParseFnName(production.name)} = () => {\n`);
             
-        sc += `    if (index >= source.length) return false;\n`
-        sc += `    const temp: { [key: string]: any } = {}; // holds $0, $1, ... variables \n\n`;
+        gen.indent();
+        
+        parserDebugMode && (sc += gen.string(`console.log(\`trying ${production.name}\`);\n`));
+            
+        sc += gen
+            .string(`if (index >= source.length) return false;\n`);
+        sc += gen
+            .string(`const temp: { [key: string]: any } = {}; // holds $0, $1, ... variables \n\n`);
+        
         production.derivations.map((derivation) => {
             // TODO:
             //sc += `let ${derivation.map((_, i) => `\$${i}`)};\n`;
-            sc += `    if (\n`;
+            sc += gen.string(`if (\n`);
+            gen.indent();
+            
             let clauses = [];
             let toi = 0;
             derivation.map((to) => {
@@ -302,14 +361,20 @@ const generateParser = (grammar) => {
                 toi++;
                 }
             });
-            sc += `        ` + clauses.join(` &&\n        `);
-            sc += `\n    ) {\n`;
+            
+            sc += gen.string(clauses.join(` &&\n        `));
+            sc += gen.string(`\n) {\n`);
             parserDebugMode && (sc += `console.log(\`parsed ${production.name}\`);\n`);
-            sc += `${scs.successfulParse(production.name, toi)}\n    }\n`;
+            
+            sc += gen.string(`${scs.successfulParse(production.name, toi)}\n}\n`);
+            gen.dedent();
         });
-        parserDebugMode && (sc += `    console.log(\`no parsed ${production.name}\`);\n`);
-        sc += `    ${scs.failedParse}\n`;
-        sc += `};\n\n`;
+        parserDebugMode && (sc += gen.string(`console.log(\`no parsed ${production.name}\`);\n`));
+        sc += gen.string(`${scs.failedParse}\n`);
+        sc += gen
+            .dedent()
+            .string(`};`)
+            .blankLine();
     });
 
     sc += `// begin literals\n`;
