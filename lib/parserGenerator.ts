@@ -1,214 +1,23 @@
 /**
- *
- * Simple "parser" and parser generator for the language's grammar's language.
- *
+ * 
+ * Generates a parser for the language in TypeScript given a grammar object.
+ * 
  */
-
-import * as
-    fs
-from 'fs';
-
+ 
 import {
     SourceCodeBuilder
 } from './codeGenerationLib';
 
-const debugMode = true;
+import
+    builtInTerminals
+from './builtInTerminals';
 
-const parserDebugMode = true;
-
-const gen: SourceCodeBuilder = new SourceCodeBuilder({
+const gen = new SourceCodeBuilder({
     tabWidth: 4
 });
 
-/*let test = '';
-
-test += gen
-    .const('foo', 'bar')
-    .beginLine()
-    .indent()
-    .string('foo bar')
-    .beginLine()
-    .string('bar foo')
-    .beginLine()
-    .string('bar foo')
-    .dedent()
-    .beginLine()
-    .string('the end')
-    .blankLine()
-    .function('foo', ['red', 'yellow'], gen.new().let('foo', 'bar').beginLine().string('return foo;').toString());
-
-console.log(test); process.exit();*/
-
-const builtInTerminals = {
-    '<newline>': {
-        type: `literal`,
-        name: `NewLine`,
-        value: String.raw`\\n`,
-        parseFn: `function parseNewLine () {
-            ${parserDebugMode ? `console.log(\`trying <newline>\`);\n` : ``} 
-            if (source[index + scout] === \`\\n\`) {
-                scout++;
-                return node(\`NewLine\`, \`\\n\`, []);
-            }
-            return false;
-        }`
-    },
-    '<eof>': {
-        type: `eof`,
-        name: `EndOfFile`,
-        value: null,
-        parseFn: `function parseEndOfFile () {
-            ${parserDebugMode ? `console.log(\`trying <eof>\`, index, scout, source.length);\n` : ``} 
-            if (index === source.length) {
-                return node(\`EndOfFile\`, null, []);
-            }
-            return false;
-        }`
-    },
-    '<space>': {
-        type: `literal`,
-        name: `Space`,
-        value: ` `,
-        parseFn: `function parseSpace () {
-            ${parserDebugMode ? `console.log(\`trying <space>\`, index, scout);\n` : ``} 
-            if (source[index + scout] === \` \`) {
-                scout++;
-                return node(\`Space\`, \` \`, []);
-            }
-            return false;
-        }`
-    },
-    '<whitespace>': {
-        type: `ws`,
-        name: `Whitespace`,
-        value: null,
-        parseFn: `function parseWhitespace () {
-            ${parserDebugMode ? `console.log(\`trying <whitespace>\`, index, scout);\n` : ``} 
-            let i, epsilon;
-            for (i = 0; index + scout + i < source.length; i++) {
-                if (source[index + scout + i] === \` \` || source[index + scout + i] === \`\\t\` || source[index + scout + i] === \`\\n\`) {
-                    // let loop continue
-                } else {
-                    break;
-                }
-            }
-            scout += i;
-            return node(\`Whitespace\`, source.slice(index + scout - i, index + scout), []);
-        }`
-    },
-    '<empty>': {
-        type: 'literal',
-        name: `Empty`,
-        value: ``,
-        parseFn: `function parseEmpty () { return node (\`Empty\`, \`\`, []);}\n`
-    }
-};
-
-const grammarSource: string = fs.readFileSync(`./language.kzrgrammar`, `utf8`);
-
-const lines = grammarSource.replace(/;[^\n]*\n/g, `\n`).split(`\n`);
-
-const pushCurrentProduction = (grammar, ctx) => {
-    grammar.productions.push({
-        name: ctx.currentProduction,
-        derivations: Array.from(ctx.currentDerivations),
-        isEntryProduction: ctx.currentProduction.trim().startsWith(`$`)
-    });
-    ctx.currentProduction = null;
-    ctx.currentDerivations = [];
-};
-
-const parseLines = (lines) => {
-    const grammar = {
-        productions: []
-    },
-        ctx = {
-            currentProduction: null,
-            currentDerivations: []
-        };
-    
-    /* parse `language.grammar` file and populate `grammar` object */
-    lines.map((line, i) => {
-
-        debugMode && console.log(`${i}: ${line}`);
-        
-        if (/^[$A-Za-z]+$/.test(line.trim())) {
-                    
-            /* new production */
-            
-            if (ctx.currentProduction) {
-                pushCurrentProduction(grammar, ctx);
-            }
-            
-            ctx.currentProduction = line.trim();
-        } else if (line.startsWith(`    |`)) {
-            
-            /* new derivation for current production */
-        
-            let to = [];
-
-            line.replace(`    |`, ``).trim().split(` `).map((target) => {
-                debugMode && console.log(`   [target] ${target}`);
-
-                // handle presence target
-                let matchResult = null,
-                isPresence = false;
-                if (matchResult = target.match(/\(([^\)]+)\)/)) {
-                debugMode && console.log(`presence target ${target} detected`);
-                target = target.replace(/\(([^\)]+)\)/, matchResult[1]);
-                isPresence = true;
-                }
-
-                // handle quantifier
-                let q = null;
-                if (q = target.match(/{([*|+])}/)) {
-                    debugMode && console.log(`quantifier ${q[1]}`);
-                    q = q[1];
-                }
-                target = target.replace(/{([*|+])}/, ``);
-                
-                // literal, non-terminal, built-in?
-                if (target.startsWith(`"`)) {
-                    let raw = target.replace(/"/g, ``);
-                    to.push({
-                        type: `literal`,
-                        name: `Literal_${raw.replace(/ /g, `_`)}`,
-                        value: raw,
-                        quantifier: q,
-                        isPresence
-                    });
-                } else if (target.startsWith(`<`)) {
-                    to.push(Object.assign({}, builtInTerminals[target], { quantifier: q }));
-                } else {
-                    to.push({
-                        type: `nonterminal`,
-                        productionName: target,
-                        quantifier: q,
-                        isPresence
-                    });
-                }
-            });
-
-            ctx.currentDerivations.push(to);
-        } else if (line === `\n` || line === ``) {
-            // ignore
-        } else {
-            // TODO
-            //debugMode && console.log(`Bad line:`);
-            //debugMode && console.log(line);
-        }
-    });
-
-    if (ctx.currentProduction) {
-        pushCurrentProduction(grammar, ctx);
-    }
-    
-    debugMode && console.log(JSON.stringify(grammar, null, 4));
-    
-    return grammar;
-};
-
-let grammar = parseLines(lines);
+const debugMode = true,
+    parserDebugMode = true;
 
 const generateParser = (grammar) => {
     /* generate a parser for the language */
@@ -460,6 +269,7 @@ const generateParser = (grammar) => {
     return sc;
 };
 
-let sourceCode = generateParser(grammar);
+export {
+    generateParser
+};
 
-fs.writeFileSync(`parser.generated.ts`, sourceCode);

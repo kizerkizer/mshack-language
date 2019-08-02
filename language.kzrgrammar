@@ -11,8 +11,8 @@ Block
 StatementList
     |StatementAndNewline{*}
 
-StatementAndNewline
-    |<whitespace> Statement <newline> <whitespace>
+abstract StatementAndNewline
+    |<whitespace> Statement (<newline>) <whitespace>
     
 Statement
     |"do" <space> Action
