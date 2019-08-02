@@ -224,31 +224,31 @@ const generateParser = (grammar) => {
     sc += `// end built-ins\n\n`;
 
     sc +=
-    `function quantifyOnce (parseFn) {
-        return parseFn();
-    };\n`
+        `function quantifyOnce (parseFn) {
+            return parseFn();
+        };\n`
 
     sc +=
-    `function quantifyZeroOrMore (parseFn) {
-        return quantifyAtLeast(0, parseFn);
-    };\n`
+        `function quantifyZeroOrMore (parseFn) {
+            return quantifyAtLeast(0, parseFn);
+        };\n`
 
     sc +=
-    `function quantifyOneOrMore (parseFn) {
-        return quantifyAtLeast(1, parseFn);
-    };\n`
+        `function quantifyOneOrMore (parseFn) {
+            return quantifyAtLeast(1, parseFn);
+        };\n`
 
     sc +=
-    `function quantifyAtLeast (n, parseFn) {
-        let nodes = [], currentNode = null;
-        while (currentNode = parseFn()) {
-            nodes.push(currentNode);
-        }
-        if (nodes.length >= n) {
-            return node(\`List\`, null, nodes);
-        }
-        return false;
-    };\n\n`
+        `function quantifyAtLeast (n, parseFn) {
+            let nodes = [], currentNode = null;
+            while (currentNode = parseFn()) {
+                nodes.push(currentNode);
+            }
+            if (nodes.length >= n) {
+                return node(\`List\`, null, nodes);
+            }
+            return false;
+        };\n\n`
 
     let entryFunctionName: string;
 

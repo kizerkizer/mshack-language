@@ -1,5 +1,9 @@
 import { parse } from './parser.generated';
 
+const evaluate = (node) => {
+
+};
+
 const main = () => {
 
 let code2 = `
@@ -20,6 +24,8 @@ do __nothing`;
 
     let result = parse(code2);
     console.log(JSON.stringify(result, null, 4));
+    
+    evaluate(result);
 };
 
 main();
