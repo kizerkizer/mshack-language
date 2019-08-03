@@ -8,15 +8,16 @@ interface IDirectiveHandler {
     (grammar: IGrammar, directive: IDirective): void;
 }
 
-handlers[`nonterminal`] = (grammar: IGrammar, directive: IDirective): void => {
-    let [ nonTerminalName, nonTerminalValue ] = directive.parameters;
-    nonTerminalName = nonTerminalName.replace(`<`, ``).replace(`>`, ``);
+handlers[`terminal`] = (grammar: IGrammar, directive: IDirective): void => {
+    let [ terminalName, terminalValue ] = directive.parameters;
+    terminalName = terminalName.replace(`<`, ``).replace(`>`, ``);
     grammar.productions.map((production) => {
         production.derivations.map((derivation) => {
             derivation.map((target) => {
-                if (target.value === nonTerminalName) {
+                if (target.value === terminalName) {
                     target.type = `literal`;
-                    target.value = nonTerminalValue;
+                    target.name = terminalName;
+                    target.value = terminalValue;
                 }
             });
         })

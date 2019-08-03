@@ -86,7 +86,7 @@ class DirectiveLine extends Line {
 }
 
 enum DirectiveType {
-    DefineNonterminal = 'nonterminal',
+    DefineNonterminal = 'terminal',
 }
 
 interface ILineParserFunction {

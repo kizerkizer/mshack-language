@@ -18,6 +18,7 @@ block_end
 cancel __fight_fire
 resume __burn_bridges
 cancel __nothing
+resume "custom"
 cancel __burn_bridges
 cancel __burn_bridges
 do __nothing`;

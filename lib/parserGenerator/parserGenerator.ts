@@ -229,7 +229,7 @@ const generateLiteralParseFunctions: ICodeGenerator = (grammar: IGrammar) => {
                 sc += gen.string(`if (source.slice(index + scout, index + scout + ${literal.value.length}) === \`${literal.value}\`) {`).nl();
                 gen.indent();
                 
-                sc += gen.string(`scout += ${literal.value.length}; return node(\`${makeValidJSIdentifier(literal.value)}\`, \`${literal.value}\`, []);`).nl();
+                sc += gen.string(`scout += ${literal.value.length}; return node(\`${literal.name ? literal.name : makeValidJSIdentifier(literal.value)}\`, \`${literal.value}\`, []);`).nl();
                 gen.dedent();
                 
                 sc += gen.string(`}`).nl();

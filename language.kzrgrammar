@@ -2,7 +2,9 @@
 ;   This specifies the grammar of the language.
 ;   Use grammarParserGen.ts to generate parser.generated.ts (the parser).
 
-!nonterminal <quote> "
+; Terminal definitions
+!terminal <dquote> "
+!terminal <squote> '
 
 $Program
     |<whitespace> StatementList <whitespace> <eof>
@@ -30,4 +32,4 @@ Action
     |CustomAction
 
 CustomAction
-    |<quote> custom <quote>
+    |<dquote> "custom" <dquote>
