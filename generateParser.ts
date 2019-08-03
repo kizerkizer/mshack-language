@@ -4,7 +4,7 @@ from 'fs';
 
 import {
     parseGrammar
-} from './lib/grammarParser';
+} from './lib/grammarParser/grammarParser';
 
 import {
     generateParser
