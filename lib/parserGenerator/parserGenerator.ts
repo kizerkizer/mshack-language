@@ -3,36 +3,47 @@ import {
 } from '../codeGenerationLib';
 
 import {
-    IGrammar, IDerivation, IParsedTarget
+    IGrammar, IDerivation, IParsedTarget, IProduction
 } from '../grammarParser/grammarParser';
 
 import
     builtInTerminals
 from './builtInTerminals';
 
+import IParsedToken from '../grammarParser/IParsedToken';
+
 const gen = new SourceCodeBuilder({
     tabWidth: 4
 });
 
+let entryFunctionName: string; // TODO get rid of global
+
 const debugMode = true,
     parserDebugMode = true;
 
-const snippets = {
-
-};
-
 interface ICodeGenerator {
-    (sc: string, grammar: IGrammar)
+    (grammar: IGrammar): string;
 }
 
-const generateHeaderComment: ICodeGenerator = (sc: string, grammar: IGrammar) => {
+const makeValidJSIdentifier = (value: string) => {
+    return encodeURIComponent(value).replace(/%/g, `_`);
+};
+
+const capitalize = str => str.charAt(0).toUpperCase() + str.slice(1);
+
+const getParseFnNameForTarget = (token: IParsedToken) => `parse${capitalize(token.type)}_${makeValidJSIdentifier(token.value)}`;
+
+const generateHeaderComment: ICodeGenerator = (grammar: IGrammar) => {
+    let sc = ``;
     sc += gen
         .reset()
         .comment(`generated ${new Date()}`)
         .blankLine();
+    return sc;
 };
 
-const generateBuiltInFunctions: ICodeGenerator = (sc: string, grammar: IGrammar) => {
+const generateBuiltInFunctions: ICodeGenerator = (grammar: IGrammar) => {
+    let sc = ``;
     sc += gen
         .reset()
         .function(`node`, [`name`, `value`, `children`], 
@@ -90,12 +101,12 @@ const generateBuiltInFunctions: ICodeGenerator = (sc: string, grammar: IGrammar)
         .reset()
         .comment(`end built-ins`)
         .blankLine();
+    return sc;
 };
 
-const generateNonterminalParseFunctions: ICodeGenerator = (sc: string, grammar: IGrammar) => {
+const generateNonterminalParseFunctions: ICodeGenerator = (grammar: IGrammar) => {
+    let sc = ``;
     let { productions } = grammar;
-    const getParseFnName = (productionName) => `parse${productionName}`;
-    let entryFunctionName: string;
     let scs = {
         successfulParse: (name, numChildren) => {
             return `/* success */ index += scout; scout = 0; return node(\`${name}\`, null, [${new Array(numChildren).fill('').map((_, i) => `temp.\$${i}`).join(`, `)}]);\n`
@@ -105,11 +116,11 @@ const generateNonterminalParseFunctions: ICodeGenerator = (sc: string, grammar: 
 
     productions.map((production) => {
         if (production.isEntryProduction) {
-            entryFunctionName = getParseFnName(production.name);
+            entryFunctionName = getParseFnNameForTarget(production);
         }
         
         sc += gen
-            .string(`const ${getParseFnName(production.name)} = () => {\n`);
+            .string(`const ${getParseFnNameForTarget(production)} = () => {\n`);
             
         gen.indent();
         
@@ -130,7 +141,6 @@ const generateNonterminalParseFunctions: ICodeGenerator = (sc: string, grammar: 
             let clauses = [];
             let tempVariableIndex = 0;
             derivation
-                .filter(target => target.type === "nonterminal")
                 .map((target: IParsedTarget) => {
                     let quantifierFunctionName = getQuantifierFunctionName(target);
 
@@ -138,7 +148,7 @@ const generateNonterminalParseFunctions: ICodeGenerator = (sc: string, grammar: 
                         clauses.push(
                             `/* presence */ ` + 
                             gen
-                                .call(quantifierFunctionName, [`parse${target.name}`])
+                                .call(quantifierFunctionName, [getParseFnNameForTarget(target)])
                                 .toString()
                         );
                         // do not increment `tempVariableIndex` as no variable used
@@ -146,7 +156,7 @@ const generateNonterminalParseFunctions: ICodeGenerator = (sc: string, grammar: 
                         clauses.push(
                             gen
                                 .string(`(`)
-                                .assignE(`(temp.\$${tempVariableIndex}`, `${quantifierFunctionName}(parse${target.name}))`)
+                                .assignE(`temp.\$${tempVariableIndex}`, `${quantifierFunctionName}(${getParseFnNameForTarget(target)})`)
                                 .string(`)`)
                                 .toString()
                         );
@@ -189,29 +199,37 @@ const generateNonterminalParseFunctions: ICodeGenerator = (sc: string, grammar: 
             .string(`};`)
             .blankLine();
     });
+    return sc;
 };
 
-const generateLiteralParseFunctions: ICodeGenerator = (sc: string, grammar: IGrammar) => {
+const generateLiteralParseFunctions: ICodeGenerator = (grammar: IGrammar) => {
+    let sc = ``;
     let { productions } = grammar;
 
     sc += gen
         .comment(`begin literals`)
         .blankLine();
     
+    let seenLiterals = {};
+
     productions.map(production => production.derivations).map((derivations) => {
         derivations.map((derivation) => {
             derivation.filter(target => target.type === `literal`).map((literal) => {
-                sc += gen.string(`function parse${literal.name} () {`).nl();
+                if (seenLiterals[literal.value]) {
+                    return;
+                }
+                seenLiterals[literal.value] = true;
+                sc += gen.string(`function ${getParseFnNameForTarget(literal)} () {`).nl();
                 gen.indent();
                 
                 if (parserDebugMode) {
-                    sc += gen.string(`console.log(\`trying literal "${literal.name}"\`, index, scout);`).nl();
+                    sc += gen.string(`console.log(\`trying literal "${literal.value}"\`, index, scout);`).nl();
                 }
                 
-                sc += gen.string(`if (source.slice(index + scout, index + scout + ${literal.value.length}) === \`${l.value}\`) {`).nl();
+                sc += gen.string(`if (source.slice(index + scout, index + scout + ${literal.value.length}) === \`${literal.value}\`) {`).nl();
                 gen.indent();
                 
-                sc += gen.string(`scout += ${literal.value.length}; return node(\`${literal.name}\`, \`${literal.value}\`, []);`).nl();
+                sc += gen.string(`scout += ${literal.value.length}; return node(\`${makeValidJSIdentifier(literal.value)}\`, \`${literal.value}\`, []);`).nl();
                 gen.dedent();
                 
                 sc += gen.string(`}`).nl();
@@ -227,33 +245,39 @@ const generateLiteralParseFunctions: ICodeGenerator = (sc: string, grammar: IGra
     sc += gen
         .comment(`end literals`)
         .blankLine();
+    
+    return sc;
 };
 
-const generateTerminalParseFunctions: ICodeGenerator = (sc: string, grammar: IGrammar) => {
+const generateTerminalParseFunctions: ICodeGenerator = (grammar: IGrammar) => {
+    let sc = ``;
     let { productions } = grammar;
 
     sc += gen
         .comment(`begin non-terminals`)
         .blankLine();
     
+    let seenTerminals = {};
+    
     productions.map(production => production.derivations).map((derivations) => {
         derivations.map((derivation) => {
             derivation.filter(target => target.type === `terminal`).map((terminal) => {
-                sc += gen.string(`function parse${terminal.name} () {`).nl();
-                gen.indent();
-                
-                if (parserDebugMode) {
-                    sc += gen.string(`console.log(\`trying terminal "${terminal.name}"\`, index, scout);`).nl();
+                if (seenTerminals[terminal.value]) {
+                    return;
                 }
+                seenTerminals[terminal.value] = true;
 
-                if (builtInTerminals[terminal.name]) {
-                    sc += builtInTerminals[terminal.name].parseFn;
-                } else {
-                    debugMode && console.error(`Invalid terminal <${terminal.name}>`)
-                }
+                //sc += gen.string(`function ${getParseFnNameForTarget(terminal)} () {`).nl();
+                gen.indent();
+
+                
+                /*if (parserDebugMode) {
+                    sc += gen.string(`console.log(\`trying terminal "${terminal.value}"\`, index, scout);`).nl();
+                }*/
+
+                // TODO
 
                 gen.dedent();
-                sc += gen.string(`}`);
                 sc += gen.blankLine();
             });
         });
@@ -262,6 +286,8 @@ const generateTerminalParseFunctions: ICodeGenerator = (sc: string, grammar: IGr
     sc += gen
         .comment(`end non-terminals`)
         .blankLine();
+    
+    return sc;
 };
 
 const getQuantifierFunctionName = (target: IParsedTarget) => {
@@ -275,7 +301,8 @@ const getQuantifierFunctionName = (target: IParsedTarget) => {
     return quantifierFunction;
 };
 
-const generateInitialVariables: ICodeGenerator = (sc: string, grammar: IGrammar) => {
+const generateInitialVariables: ICodeGenerator = (grammar: IGrammar) => {
+    let sc = ``;
     sc += `const preRoot = {
         root: null
     };\n\n`;
@@ -288,28 +315,28 @@ const generateInitialVariables: ICodeGenerator = (sc: string, grammar: IGrammar)
         .beginLine()
         .let(`scout: number`, `0`)
         .blankLine();
+    return sc;
 };
 
 const generateParser = (grammar: IGrammar) => {
     /* generate a parser for the language */
-    let sc = ``, // source code
-        literals = [];
+    let sc = ``; // source code
     
-    generateHeaderComment(sc, grammar);
+    sc += generateHeaderComment(grammar);
 
-    generateBuiltInFunctions(sc, grammar);
+    sc += generateBuiltInFunctions(grammar);
 
-    generateInitialVariables(sc, grammar);
+    sc += generateInitialVariables(grammar);
 
     gen.reset();
 
-    generateNonterminalParseFunctions(sc, grammar);
+    sc += generateNonterminalParseFunctions(grammar);
     
     gen.reset();
 
-    generateLiteralParseFunctions(sc, grammar);
+    sc += generateLiteralParseFunctions(grammar);
 
-    generateTerminalParseFunctions(sc, grammar);
+    // sc += generateTerminalParseFunctions(grammar);
 
     sc += gen.string(`const parse: (sourceCode: string) => any = (sourceCode: string) => { source = sourceCode;  let result = ${entryFunctionName}(); ${parserDebugMode ? `console.log(\`\\n---\\n\`, source.slice(0, index + scout));` : ``}\nreturn result;}`).nl();
     sc += gen.string(`export { parse }`).blankLine();

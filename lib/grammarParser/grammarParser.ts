@@ -7,10 +7,14 @@ import {
     IParsedTarget
 } from './lineParser';
 
+import 
+    IParsedToken
+from './IParsedToken';
+
 const debugMode = true;
 
 type IDerivation = Array<IParsedTarget>;
-interface IProduction {
+interface IProduction extends IParsedToken{
     name: string;
     derivations: IDerivation[];
     isEntryProduction: boolean;
@@ -36,6 +40,8 @@ const updateCtx = (ctx, productionLine) => {
 const pushCurrentProduction = (grammar, ctx) => {
     grammar.productions.push({
         name: ctx.currentProduction,
+        value: ctx.currentProduction,
+        type: 'Production',
         derivations: Array.from(ctx.currentDerivations),
         isEntryProduction: ctx.currentProductionIsEntry,
         isAbstractProduction: ctx.currentProductionIsAbstract

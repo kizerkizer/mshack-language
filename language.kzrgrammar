@@ -2,6 +2,8 @@
 ;   This specifies the grammar of the language.
 ;   Use grammarParserGen.ts to generate parser.generated.ts (the parser).
 
+; !nonterminal <quote> "
+
 $Program
     |<whitespace> StatementList <whitespace> <eof>
 

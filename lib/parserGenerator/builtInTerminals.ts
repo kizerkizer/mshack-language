@@ -1,6 +1,6 @@
 const builtInTerminals = {
     'newline': {
-        parseFn: `function parseNewLine () {
+        parseFn: `function parseTerminal_newline () {
             if (source[index + scout] === \`\\n\`) {
                 scout++;
                 return node(\`NewLine\`, \`\\n\`, []);
@@ -9,7 +9,7 @@ const builtInTerminals = {
         }`
     },
     'eof': {
-        parseFn: `function parseEndOfFile () {
+        parseFn: `function parseTerminal_eof () {
             if (index === source.length) {
                 return node(\`EndOfFile\`, null, []);
             }
@@ -17,7 +17,7 @@ const builtInTerminals = {
         }`
     },
     'space': {
-        parseFn: `function parseSpace () {
+        parseFn: `function parseTerminal_space () {
             if (source[index + scout] === \` \`) {
                 scout++;
                 return node(\`Space\`, \` \`, []);
@@ -26,7 +26,7 @@ const builtInTerminals = {
         }`
     },
     'whitespace': {
-        parseFn: `function parseWhitespace () {
+        parseFn: `function parseTerminal_whitespace () {
             let i, epsilon;
             for (i = 0; index + scout + i < source.length; i++) {
                 if (source[index + scout + i] === \` \` || source[index + scout + i] === \`\\t\` || source[index + scout + i] === \`\\n\`) {
@@ -40,7 +40,7 @@ const builtInTerminals = {
         }`
     },
     'empty': {
-        parseFn: `function parseEmpty () { return node (\`Empty\`, \`\`, []);}\n`
+        parseFn: `function parseTerminal_empty () { return node (\`Empty\`, \`\`, []);}\n`
     }
 };
 

@@ -1,3 +1,7 @@
+import
+    IParsedToken
+from './IParsedToken';
+
 enum LineType {
     ProductionLine,
     DerivationLine,
@@ -52,10 +56,7 @@ class ProductionLine extends Line {
     }
 };
 
-interface IParsedTarget {
-    type: string;
-    name: string;
-    value: string | null;
+interface IParsedTarget extends IParsedToken {
     quantifier: string;
     isPresence: boolean;
 }
@@ -94,10 +95,6 @@ const tryParseProduction: ILineParserFunction = (line) => {
     return false;
 };
 
-const makeValidJSIdentifier = (value: string) => {
-    return encodeURIComponent(value).replace(/%/g, `_`);
-};
-
 const parseDerivationTargets = (unparsedTargets: string[]): IParsedTarget[] => {
     return unparsedTargets.map((target) => {
 
@@ -123,7 +120,6 @@ const parseDerivationTargets = (unparsedTargets: string[]): IParsedTarget[] => {
             let raw = target.replace(/"/g, ``);
             return {
                 type: `literal`,
-                name: `Literal_${makeValidJSIdentifier(raw)}`,
                 value: raw,
                 quantifier: q,
                 isPresence
@@ -132,16 +128,14 @@ const parseDerivationTargets = (unparsedTargets: string[]): IParsedTarget[] => {
             let raw = target.replace(/</g, ``).replace(/>/g, ``);
             return {
                 type: `terminal`,
-                name: `Terminal_${makeValidJSIdentifier(raw)}`,
                 value: raw,
                 quantifier: q,
                 isPresence
             };
         } else {
             return {
-                type: `nonterminal`,
-                name: target,
-                value: null,
+                type: `production`,
+                value: target,
                 quantifier: q,
                 isPresence
             };
