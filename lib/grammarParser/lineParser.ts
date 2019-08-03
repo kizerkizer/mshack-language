@@ -215,7 +215,7 @@ const parseLine = (line: string, lineNumber: number) => {
 
 const getLines = (grammarSourceCode: string) => {
     //const lines = grammarSourceCode.replace(/;[^\n]*\n/g, `\n`).trim().split(`\n`);
-    const lines = grammarSourceCode.split(`\n`);
+    const lines = grammarSourceCode.replace(/\r/g, ``).split(`\n`);
     const parsedLines = lines.map(parseLine).filter(line => !!line);
     return parsedLines;
 };
