@@ -2,7 +2,7 @@
 ;   This specifies the grammar of the language.
 ;   Use grammarParserGen.ts to generate parser.generated.ts (the parser).
 
-; !nonterminal <quote> "
+!nonterminal <quote> "
 
 $Program
     |<whitespace> StatementList <whitespace> <eof>
@@ -27,3 +27,7 @@ Action
     |"__burn_bridges"
     |"__fight_fire"
     |"__nothing"
+    |CustomAction
+
+CustomAction
+    |<quote> custom <quote>

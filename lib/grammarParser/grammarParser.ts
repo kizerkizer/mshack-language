@@ -1,28 +1,48 @@
 import {
     Line,
     LineType,
+    DirectiveType,
     getLines,
     DerivationLine,
     ProductionLine,
-    IParsedTarget
+    DirectiveLine,
+    IParsedTarget,
 } from './lineParser';
 
 import 
-    IParsedToken
-from './IParsedToken';
+    IParsedGrammarElement
+from './IParsedGrammarElement';
+import { processDirectives } from './directiveProcessor';
 
 const debugMode = true;
 
 type IDerivation = Array<IParsedTarget>;
-interface IProduction extends IParsedToken{
+interface IProduction extends IParsedGrammarElement {
     name: string;
     derivations: IDerivation[];
     isEntryProduction: boolean;
     isAbstractProduction: boolean;
 }
+
+interface IDirective extends IParsedGrammarElement {
+    directiveType: DirectiveType;
+    parameters: string[];
+}
+
 interface IGrammar {
     productions: IProduction[];
+    directives: IDirective[];
 }
+
+const handleDirectiveLine = (grammar: IGrammar, directiveLine: DirectiveLine) => {
+    let directive: IDirective = {
+        type: `directive`,
+        value: directiveLine.source,
+        directiveType: directiveLine.directiveType,
+        parameters: directiveLine.parameters
+    };
+    grammar.directives.push(directive);
+};
 
 const resetCtx = (ctx) => {
     ctx.currentProduction = null;
@@ -51,7 +71,8 @@ const pushCurrentProduction = (grammar, ctx) => {
 
 const parseLines = (lines: Line[]) => {
     const grammar: IGrammar = {
-        productions: []
+        productions: [],
+        directives: []
     },
         ctx = {
             currentProduction: null,
@@ -79,6 +100,8 @@ const parseLines = (lines: Line[]) => {
             /* new derivation for current production */
 
             ctx.currentDerivations.push((<DerivationLine> line).targets);
+        } else if (line.type === LineType.DirectiveLine) {
+            handleDirectiveLine(grammar, <DirectiveLine> line);
         } else {
             // TODO
         }
@@ -94,7 +117,9 @@ const parseLines = (lines: Line[]) => {
 };
 
 const parseGrammar = (source: string): IGrammar => {
-    return parseLines(getLines(source));
+    let grammar = parseLines(getLines(source));
+    processDirectives(grammar);
+    return grammar;
 };
 
 export {
@@ -102,5 +127,6 @@ export {
     IGrammar,
     IProduction,
     IDerivation,
+    IDirective,
     IParsedTarget
 };

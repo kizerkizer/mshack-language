@@ -10,7 +10,7 @@ import
     builtInTerminals
 from './builtInTerminals';
 
-import IParsedToken from '../grammarParser/IParsedToken';
+import IParsedGrammarElement from '../grammarParser/IParsedGrammarElement';
 
 const gen = new SourceCodeBuilder({
     tabWidth: 4
@@ -31,7 +31,7 @@ const makeValidJSIdentifier = (value: string) => {
 
 const capitalize = str => str.charAt(0).toUpperCase() + str.slice(1);
 
-const getParseFnNameForTarget = (token: IParsedToken) => `parse${capitalize(token.type)}_${makeValidJSIdentifier(token.value)}`;
+const getParseFnNameForTarget = (token: IParsedGrammarElement) => `parse${capitalize(token.type)}_${makeValidJSIdentifier(token.value)}`;
 
 const generateHeaderComment: ICodeGenerator = (grammar: IGrammar) => {
     let sc = ``;

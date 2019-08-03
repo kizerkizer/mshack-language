@@ -1,6 +1,6 @@
 import
-    IParsedToken
-from './IParsedToken';
+    IParsedGrammarElement
+from './IParsedGrammarElement';
 
 enum LineType {
     ProductionLine,
@@ -56,7 +56,7 @@ class ProductionLine extends Line {
     }
 };
 
-interface IParsedTarget extends IParsedToken {
+interface IParsedTarget extends IParsedGrammarElement {
     quantifier: string;
     isPresence: boolean;
 }
@@ -72,6 +72,21 @@ class DerivationLine extends Line {
     get targets () {
         return this._targets;
     }
+}
+
+class DirectiveLine extends Line {
+    public directiveType: DirectiveType;
+    public parameters: string[];
+
+    constructor (directiveType: DirectiveType, parameters: string[]) {
+        super(LineType.DirectiveLine);
+        this.directiveType = directiveType;
+        this.parameters = parameters;
+    }
+}
+
+enum DirectiveType {
+    DefineNonterminal = 'nonterminal',
 }
 
 interface ILineParserFunction {
@@ -155,9 +170,24 @@ const tryParseDerivation: ILineParserFunction = (line) => {
     return false;
 };
 
+const directiveRE = /^!([a-z]*)((?:\s[^\s]+)*)$/;
+
+const tryParseDirective: ILineParserFunction = (line) => {
+    let match;
+    if (match = line.match(directiveRE)) {
+        let type = match[1];
+        let params = match[2].trim().split(` `);
+        const parsedLine = new DirectiveLine(type as DirectiveType, params);
+        parsedLine.source = line;
+        return parsedLine;
+    }
+    return false;
+};
+
 const lineParsers: ILineParserFunction[] = [
-    tryParseProduction,
     tryParseDerivation,
+    tryParseProduction,
+    tryParseDirective,
 ];
 
 const commentRE = /;([^\n]*)$/g;
@@ -220,6 +250,8 @@ export {
     Line,
     ProductionLine,
     DerivationLine,
+    DirectiveLine,
     LineType,
+    DirectiveType,
     IParsedTarget
 };
