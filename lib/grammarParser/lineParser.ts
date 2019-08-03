@@ -1,6 +1,7 @@
 enum LineType {
     ProductionLine,
-    DerivationLine
+    DerivationLine,
+    DirectiveLine // TODO
 };
 
 abstract class Line {
@@ -225,5 +226,6 @@ export {
     Line,
     ProductionLine,
     DerivationLine,
-    LineType
+    LineType,
+    IParsedTarget
 };

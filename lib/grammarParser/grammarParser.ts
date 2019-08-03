@@ -1,18 +1,37 @@
-/**
- *
- * Simple "parser" for the language's grammar's language.
- *
- */
-
 import {
     Line,
     LineType,
     getLines,
     DerivationLine,
-    ProductionLine
+    ProductionLine,
+    IParsedTarget
 } from './lineParser';
 
 const debugMode = true;
+
+type IDerivation = Array<IParsedTarget>;
+interface IProduction {
+    name: string;
+    derivations: IDerivation[];
+    isEntryProduction: boolean;
+    isAbstractProduction: boolean;
+}
+interface IGrammar {
+    productions: IProduction[];
+}
+
+const resetCtx = (ctx) => {
+    ctx.currentProduction = null;
+    ctx.currentDerivations = [];
+    ctx.currentProductionIsAbstract = false;
+    ctx.currentProductionIsEntry = false;
+};
+
+const updateCtx = (ctx, productionLine) => {
+    ctx.currentProduction = productionLine.name;
+    ctx.currentProductionIsAbstract = productionLine.isAbstract;
+    ctx.currentProductionIsEntry = productionLine.isEntry;
+};
 
 const pushCurrentProduction = (grammar, ctx) => {
     grammar.productions.push({
@@ -20,15 +39,12 @@ const pushCurrentProduction = (grammar, ctx) => {
         derivations: Array.from(ctx.currentDerivations),
         isEntryProduction: ctx.currentProductionIsEntry,
         isAbstractProduction: ctx.currentProductionIsAbstract
-    });
-    ctx.currentProduction = null;
-    ctx.currentDerivations = [];
-    ctx.currentProductionIsAbstract = false;
-    ctx.currentProductionIsEntry = false;
+    } as IProduction);
+    resetCtx(ctx);
 };
 
 const parseLines = (lines: Line[]) => {
-    const grammar = {
+    const grammar: IGrammar = {
         productions: []
     },
         ctx = {
@@ -51,13 +67,11 @@ const parseLines = (lines: Line[]) => {
             }
 
             let productionLine = (<ProductionLine> line);
-            
-            ctx.currentProduction = productionLine.name;
-            ctx.currentProductionIsAbstract = productionLine.isAbstract;
-            ctx.currentProductionIsEntry = productionLine.isEntry;
+            updateCtx(ctx, productionLine);
         } else if (line.type === LineType.DerivationLine) {
             
             /* new derivation for current production */
+
             ctx.currentDerivations.push((<DerivationLine> line).targets);
         } else {
             // TODO
@@ -73,10 +87,14 @@ const parseLines = (lines: Line[]) => {
     return grammar;
 };
 
-const parseGrammar = (source: string) => {
+const parseGrammar = (source: string): IGrammar => {
     return parseLines(getLines(source));
-}
+};
 
 export {
-    parseGrammar
+    parseGrammar,
+    IGrammar,
+    IProduction,
+    IDerivation,
+    IParsedTarget
 };

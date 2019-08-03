@@ -8,7 +8,7 @@ import {
 
 import {
     generateParser
-} from './lib/parserGenerator';
+} from './lib/parserGenerator/parserGenerator';
 
 const grammarSource: string = fs.readFileSync(`./language.kzrgrammar`, `utf8`);
 
