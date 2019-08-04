@@ -1,4 +1,5 @@
 import { parse } from './parser.generated';
+import { fstat, writeFileSync } from 'fs';
 
 const evaluate = (node) => {
 
@@ -24,8 +25,10 @@ cancel __burn_bridges
 do __nothing`;
 
     let result = parse(code2);
-    console.log(JSON.stringify(result, null, 4));
-    
+    //console.log(JSON.stringify(result, null, 4));
+   
+    writeFileSync('./out/parseResult.json', JSON.stringify(result, null, 4));
+
     evaluate(result);
 };
 

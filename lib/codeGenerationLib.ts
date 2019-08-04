@@ -112,7 +112,44 @@ class SourceCodeBuilder {
     nl () {
         return this.beginLine();
     }
-    
+
+    return (value: string) {
+        this.addString(`return ${value};`);
+        return this;
+    }
+
+    objectL (keyValuePairs: Array<Array<string>>) {
+        this.addString(`{`);
+        this.indent();
+        this.beginLine();
+        for (let pair of keyValuePairs) {
+            if (pair.length === 1) {
+                this.addString(`${pair[0]},`);
+            } else {
+                this.addString(`${pair[0]}: ${pair[1]},`);
+            }
+            this.beginLine();
+        }
+        this.dedent();
+        this.addString(`}`);
+        return this;
+    }
+
+    stringL (value: string, quoteType: 'double' | 'single' | 'backtick' = 'double') {
+        if (quoteType === `double`) {
+            this.addString(`"${value}"`);
+            return this;
+        }
+        if (quoteType === `single`) {
+            this.addString(`'${value}'`);
+            return this;
+        }
+        if (quoteType === `backtick`) {
+            this.addString(`\`${value}\``);
+            return this;
+        }
+    }
+
     assignE (key: string, value: string) {
         this.representation += `${key} = ${value}`
         return this;

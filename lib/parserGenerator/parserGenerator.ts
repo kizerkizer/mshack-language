@@ -46,42 +46,84 @@ const generateBuiltInFunctions: ICodeGenerator = (grammar: IGrammar) => {
     let sc = ``;
     sc += gen
         .reset()
-        .function(`node`, [`name`, `value`, `children`], 
-            gen.new().string(
-`return {
-    name,
-    value,
-    children
-};`
-            ).toString())
+        .function(`node`, [
+            `name`, `value`, `children`, 
+            gen
+                .reset()
+                .assignE(`properties`, `{}`)
+                .toString()
+            ],
+            gen
+                .new()
+                .string(
+                gen
+                    .new()
+                    .return(
+                    gen
+                        .new()
+                        .objectL([
+                            [`name`],
+                            [`value`],
+                            [`children`],
+                            [`properties`]
+                        ])
+                        .toString()
+                    )
+                    .toString()
+                )
+                .toString()
+        )
         .blankLine();
     
     sc +=
-        `function quantifyOnce (parseFn) {
-            return parseFn();
-        };\n`
+`function quantifyOnce (parseFn) {
+    return parseFn();
+}\n\n`
 
     sc +=
-        `function quantifyZeroOrMore (parseFn) {
-            return quantifyAtLeast(0, parseFn);
-        };\n`
+`function quantifyZeroOrMore (parseFn) {
+    return quantifyAtLeast(0, parseFn);
+}\n\n`
 
     sc +=
-        `function quantifyOneOrMore (parseFn) {
-            return quantifyAtLeast(1, parseFn);
-        };\n`
+`function quantifyOneOrMore (parseFn) {
+    return quantifyAtLeast(1, parseFn);
+}\n\n`
         
     sc +=
-        `function quantifyAtLeast (n, parseFn) {
-            let nodes = [], currentNode = null;
-            while (currentNode = parseFn()) {
-                nodes.push(currentNode);
+`function quantifyAtLeast (n, parseFn) {
+    let nodes = [], currentNode = null;
+    while (currentNode = parseFn()) {
+        nodes.push(currentNode);
+    }
+    if (nodes.length >= n) {
+        return node(\`List\`, null, nodes, {
+            isEntry: false, 
+            isAbstract: true
+        });
+    }
+    return false;
+}\n\n`
+
+sc +=
+`function postProcessTree (tree) {
+    console.log(\`postProcess \${tree.name}\`);
+
+    // process abstract nodes
+    let reprocess = true;
+    while (reprocess) {
+        reprocess = false;
+        for (let i = tree.children.length - 1; i >= 0; i--) {
+            let child = tree.children[i];
+            if (child.properties.isAbstract) {
+                console.log(\`Removing abstract \${child.name} and replacing with children.\`);
+                tree.children.splice(i, 1, ...(child.children));
+                reprocess = true;
             }
-            if (nodes.length >= n) {
-                return node(\`List\`, null, nodes);
-            }
-            return false;
-        };\n\n`
+        }
+    }
+    tree.children.map(child => postProcessTree(child));
+}\n\n`
 
     sc += gen
         .reset()
@@ -101,6 +143,7 @@ const generateBuiltInFunctions: ICodeGenerator = (grammar: IGrammar) => {
         .reset()
         .comment(`end built-ins`)
         .blankLine();
+
     return sc;
 };
 
@@ -108,8 +151,11 @@ const generateNonterminalParseFunctions: ICodeGenerator = (grammar: IGrammar) =>
     let sc = ``;
     let { productions } = grammar;
     let scs = {
-        successfulParse: (name, numChildren) => {
-            return `/* success */ index += scout; scout = 0; return node(\`${name}\`, null, [${new Array(numChildren).fill('').map((_, i) => `temp.\$${i}`).join(`, `)}]);\n`
+        successfulParse: (name, numChildren, isEntry = false, isAbstract = false) => {
+            return `/* success */ index += scout; scout = 0; return node(\`${name}\`, null, [${new Array(numChildren).fill('').map((_, i) => `temp.\$${i}`).join(`, `)}], {
+                isEntry: ${isEntry},
+                isAbstract: ${isAbstract}
+            });\n`
         },
         failedParse: `/* fail */ scout = 0; return false;`,
     };
@@ -185,7 +231,7 @@ const generateNonterminalParseFunctions: ICodeGenerator = (grammar: IGrammar) =>
             parserDebugMode && (sc += `console.log(\`parsed ${production.name}\`);\n`);
             
             sc += gen
-                .string(`${scs.successfulParse(production.name, tempVariableIndex)}\n}\n`);
+                .string(`${scs.successfulParse(production.name, tempVariableIndex, production.isEntryProduction, production.isAbstractProduction)}\n}\n`);
         });
         
         parserDebugMode && (sc += gen.string(`console.log(\`no parsed ${production.name}\`);\n`));
@@ -229,7 +275,7 @@ const generateLiteralParseFunctions: ICodeGenerator = (grammar: IGrammar) => {
                 sc += gen.string(`if (source.slice(index + scout, index + scout + ${literal.value.length}) === \`${literal.value}\`) {`).nl();
                 gen.indent();
                 
-                sc += gen.string(`scout += ${literal.value.length}; return node(\`${literal.name ? literal.name : makeValidJSIdentifier(literal.value)}\`, \`${literal.value}\`, []);`).nl();
+                sc += gen.string(`scout += ${literal.value.length}; return node(\`${literal.name ? literal.name : makeValidJSIdentifier(literal.value)}\`, \`${literal.value}\`, [], { isEntry: false, isAbstract: false });`).nl(); // TODO DRY node() function
                 gen.dedent();
                 
                 sc += gen.string(`}`).nl();
@@ -338,7 +384,7 @@ const generateParser = (grammar: IGrammar) => {
 
     // sc += generateTerminalParseFunctions(grammar);
 
-    sc += gen.string(`const parse: (sourceCode: string) => any = (sourceCode: string) => { source = sourceCode;  let result = ${entryFunctionName}(); ${parserDebugMode ? `console.log(\`\\n---\\n\`, source.slice(0, index + scout));` : ``}\nreturn result;}`).nl();
+    sc += gen.string(`const parse: (sourceCode: string) => any = (sourceCode: string) => { source = sourceCode;  let result = ${entryFunctionName}(); postProcessTree(result); ${parserDebugMode ? `console.log(\`\\n---\\n\`, source.slice(0, index + scout));` : ``}\nreturn result;}`).nl();
     sc += gen.string(`export { parse }`).blankLine();
     sc += gen.comment(`end generated code`).beginLine();
 

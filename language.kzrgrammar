@@ -1,28 +1,31 @@
-
-;   This specifies the grammar of the language.
-;   Use grammarParserGen.ts to generate parser.generated.ts (the parser).
+;;  (C) 2018 Alex Kizer
+;;  This specifies the grammar of the language.
+;;  Use generateParser.ts to generate parser.generated.ts (the parser).
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Terminal definitions
 !terminal <dquote> "
 !terminal <squote> '
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Grammar
 $Program
-    |<whitespace> StatementList <whitespace> <eof>
+    |(<whitespace>) StatementList (<whitespace>) (<eof>)
 
 Block
-    |<whitespace> ("block_begin") StatementList ("block_end")
+    |(<whitespace>) ("block_begin") StatementList ("block_end")
 
 StatementList
     |StatementAndNewline{*}
 
 abstract StatementAndNewline
-    |<whitespace> Statement (<newline>) <whitespace>
+    |(<whitespace>) Statement (<newline>) (<whitespace>)
     
 Statement
-    |"do" <space> Action
-    |"cancel" <space> Action
-    |"pause" <space> Action
-    |"resume" <space> Action
+    |"do" (<space>) Action
+    |"cancel" (<space>) Action
+    |"pause" (<space>) Action
+    |"resume" (<space>) Action
     |Block
 
 Action
@@ -32,4 +35,5 @@ Action
     |CustomAction
 
 CustomAction
-    |<dquote> "custom" <dquote>
+    |(<dquote>) "custom" (<dquote>)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
