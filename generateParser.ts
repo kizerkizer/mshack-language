@@ -10,7 +10,7 @@ import {
     generateParser
 } from './lib/parserGenerator/parserGenerator';
 
-const grammarSource: string = fs.readFileSync(`./language.kzrgrammar`, `utf8`);
+const grammarSource: string = fs.readFileSync(`./kizerlang.kzrgrammar`, `utf8`);
 
 const grammar = parseGrammar(grammarSource);
 

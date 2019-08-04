@@ -1,0 +1,34 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;  (C) 2018 Alex Kizer
+;;  This specifies the grammar of the language.
+;;  Use generateParser.ts to generate parser.generated.ts (the parser).
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; terminals
+!terminal <dquote> "
+!terminal <squote> '
+
+!terminal <parenl> (
+!terminal <parenr> )
+
+; grammar
+$Program
+    |ExpressionList <eof>
+
+ExpressionList
+    |Expression{*}
+
+abstract Expression
+    |ExpressionAssignment
+    |(<parenl>) Expression (<parenr>)
+    |(<dquote>) <alpha> (<dquote>)
+
+ExpressionAssignment
+    |Identifier (<whitespace[nonempty]>) "<-" (<whitespace[nonempty]>) Expression
+
+Identifier
+    |"foo"

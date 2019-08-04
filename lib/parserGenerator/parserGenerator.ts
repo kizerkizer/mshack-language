@@ -26,7 +26,14 @@ interface ICodeGenerator {
 }
 
 const makeValidJSIdentifier = (value: string) => {
-    return encodeURIComponent(value).replace(/%/g, `_`);
+    return encodeURIComponent(value)
+        .replace(/%/g, `_pct_`)
+        .replace(/\-/g, `_hyphen_`)
+        .replace(/\~/g, `_tilde_`)
+        .replace(/\./g, `_dot_`)
+        .replace(/\(/g, `_leftparen_`)
+        .replace(/\)/g, `_rightparen_`);
+    // TODO
 };
 
 const capitalize = str => str.charAt(0).toUpperCase() + str.slice(1);
@@ -64,8 +71,8 @@ const generateBuiltInFunctions: ICodeGenerator = (grammar: IGrammar) => {
                         .objectL([
                             [`name`],
                             [`value`],
+                            [`properties`],
                             [`children`],
-                            [`properties`]
                         ])
                         .toString()
                     )
@@ -76,24 +83,24 @@ const generateBuiltInFunctions: ICodeGenerator = (grammar: IGrammar) => {
         .blankLine();
     
     sc +=
-`function quantifyOnce (parseFn) {
-    return parseFn();
+`function quantifyOnce (parseFn, ...rest) {
+    return parseFn(...rest);
 }\n\n`
 
     sc +=
-`function quantifyZeroOrMore (parseFn) {
-    return quantifyAtLeast(0, parseFn);
+`function quantifyZeroOrMore (parseFn, ...rest) {
+    return quantifyAtLeast(0, parseFn, ...rest);
 }\n\n`
 
     sc +=
-`function quantifyOneOrMore (parseFn) {
-    return quantifyAtLeast(1, parseFn);
+`function quantifyOneOrMore (parseFn, ...rest) {
+    return quantifyAtLeast(1, parseFn, ...rest);
 }\n\n`
         
     sc +=
-`function quantifyAtLeast (n, parseFn) {
+`function quantifyAtLeast (n, parseFn, ...rest) {
     let nodes = [], currentNode = null;
-    while (currentNode = parseFn()) {
+    while (currentNode = parseFn(...rest)) {
         nodes.push(currentNode);
     }
     if (nodes.length >= n) {
@@ -157,7 +164,7 @@ const generateNonterminalParseFunctions: ICodeGenerator = (grammar: IGrammar) =>
                 isAbstract: ${isAbstract}
             });\n`
         },
-        failedParse: `/* fail */ scout = 0; return false;`,
+        failedParse: `/* fail */ scout = scoutOriginal; return false;`,
     };
 
     productions.map((production) => {
@@ -166,7 +173,7 @@ const generateNonterminalParseFunctions: ICodeGenerator = (grammar: IGrammar) =>
         }
         
         sc += gen
-            .string(`const ${getParseFnNameForTarget(production)} = () => {\n`);
+            .string(`const ${getParseFnNameForTarget(production)} = (parameters) => {\n`);
             
         gen.indent();
         
@@ -176,7 +183,9 @@ const generateNonterminalParseFunctions: ICodeGenerator = (grammar: IGrammar) =>
             .string(`if (index >= source.length) return false;\n`);
         sc += gen
             .string(`const temp: { [key: string]: any } = {}; // holds $0, $1, ... variables \n\n`);
-            
+        sc += gen
+            .assign(`const scoutOriginal`, `scout`);
+
         gen.reset();
         
         production.derivations.map((derivation) => {
@@ -194,7 +203,7 @@ const generateNonterminalParseFunctions: ICodeGenerator = (grammar: IGrammar) =>
                         clauses.push(
                             `/* presence */ ` + 
                             gen
-                                .call(quantifierFunctionName, [getParseFnNameForTarget(target)])
+                                .call(quantifierFunctionName, [getParseFnNameForTarget(target), `[${target.parameters.map(parameter => `"${parameter}"`).join(`, `)}]`])
                                 .toString()
                         );
                         // do not increment `tempVariableIndex` as no variable used
@@ -265,7 +274,7 @@ const generateLiteralParseFunctions: ICodeGenerator = (grammar: IGrammar) => {
                     return;
                 }
                 seenLiterals[literal.value] = true;
-                sc += gen.string(`function ${getParseFnNameForTarget(literal)} () {`).nl();
+                sc += gen.string(`function ${getParseFnNameForTarget(literal)} (parameters) {`).nl();
                 gen.indent();
                 
                 if (parserDebugMode) {
@@ -275,7 +284,7 @@ const generateLiteralParseFunctions: ICodeGenerator = (grammar: IGrammar) => {
                 sc += gen.string(`if (source.slice(index + scout, index + scout + ${literal.value.length}) === \`${literal.value}\`) {`).nl();
                 gen.indent();
                 
-                sc += gen.string(`scout += ${literal.value.length}; return node(\`${literal.name ? literal.name : makeValidJSIdentifier(literal.value)}\`, \`${literal.value}\`, [], { isEntry: false, isAbstract: false });`).nl(); // TODO DRY node() function
+                sc += gen.string(`${parserDebugMode ? `console.log(\`parsed literal "${literal.value}"\`); ` : ``}scout += ${literal.value.length}; return node(\`${literal.name ? literal.name : makeValidJSIdentifier(literal.value)}\`, \`${literal.value}\`, [], { isEntry: false, isAbstract: false });`).nl(); // TODO DRY node() function
                 gen.dedent();
                 
                 sc += gen.string(`}`).nl();
@@ -384,7 +393,7 @@ const generateParser = (grammar: IGrammar) => {
 
     // sc += generateTerminalParseFunctions(grammar);
 
-    sc += gen.string(`const parse: (sourceCode: string) => any = (sourceCode: string) => { source = sourceCode;  let result = ${entryFunctionName}(); postProcessTree(result); ${parserDebugMode ? `console.log(\`\\n---\\n\`, source.slice(0, index + scout));` : ``}\nreturn result;}`).nl();
+    sc += gen.string(`const parse: (sourceCode: string) => any = (sourceCode: string) => { source = sourceCode;  let result = ${entryFunctionName}([]); postProcessTree(result); ${parserDebugMode ? `console.log(\`\\n---\\n\`, source.slice(0, index + scout));` : ``}\nreturn result;}`).nl();
     sc += gen.string(`export { parse }`).blankLine();
     sc += gen.comment(`end generated code`).beginLine();
 

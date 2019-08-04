@@ -5,7 +5,7 @@ from './IParsedGrammarElement';
 enum LineType {
     ProductionLine,
     DerivationLine,
-    DirectiveLine // TODO
+    DirectiveLine
 };
 
 abstract class Line {
@@ -59,6 +59,7 @@ class ProductionLine extends Line {
 interface IParsedTarget extends IParsedGrammarElement {
     quantifier: string;
     isPresence: boolean;
+    parameters: string[];
 }
 
 class DerivationLine extends Line {
@@ -110,6 +111,8 @@ const tryParseProduction: ILineParserFunction = (line) => {
     return false;
 };
 
+let nonterminalParamsRE = /\[([a-z\s]+)\]/;
+
 const parseDerivationTargets = (unparsedTargets: string[]): IParsedTarget[] => {
     return unparsedTargets.map((target) => {
 
@@ -137,22 +140,32 @@ const parseDerivationTargets = (unparsedTargets: string[]): IParsedTarget[] => {
                 type: `literal`,
                 value: raw,
                 quantifier: q,
-                isPresence
+                isPresence,
+                parameters: []
             };
         } else if (target.startsWith(`<`)) {
             let raw = target.replace(/</g, ``).replace(/>/g, ``);
+            let match = raw.match(nonterminalParamsRE);
+            let parameters = [];
+            if (match) {
+                console.log(`parameters match`);
+                raw = raw.replace(match[0], ``);
+                parameters = match[1].trim().split(/\s/);
+            }
             return {
                 type: `terminal`,
                 value: raw,
                 quantifier: q,
-                isPresence
+                isPresence,
+                parameters
             };
         } else {
             return {
                 type: `production`,
                 value: target,
                 quantifier: q,
-                isPresence
+                isPresence,
+                parameters: []
             };
         }
     });
