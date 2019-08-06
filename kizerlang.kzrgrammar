@@ -41,11 +41,16 @@ ExpressionLiteral
 
 abstract Literal
     |LiteralString
-
+    |LiteralBoolean
+    
 LiteralString
     |(<dquote>) <alpha>=Value (<dquote>)
     |(<squote>) <alpha>=Value (<squote>)
 
+LiteralBoolean
+    |"true"
+    |"nope"
+    
 ExpressionAssignment
     |Identifier=LeftHandSide (<whitespace[nonempty]>) (<operatorassignment>) (<whitespace[nonempty]>) Expression=RightHandSide
 
