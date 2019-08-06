@@ -127,8 +127,17 @@ sc +=
             let child = tree.children[i];
             if (child.properties.isAbstract) {
                 console.log(\`Removing abstract \${child.name} and replacing with children.\`);
+
+                // children of abstract productions inherit assigned aliases:
+                /*if (child.properties.alias) {
+                    child.children.map((grandChild) => {
+                        grandChild.properties.alias = child.properties.alias; 
+                    });
+                }*/
+
+                // splice in child's children in place of child:
                 tree.children.splice(i, 1, ...(child.children));
-                reprocess = true;
+                reprocess = true; // must check if any spliced-in children are also abstract
             }
         }
     }
@@ -136,14 +145,44 @@ sc +=
 }`;
 
 sc +=
-`function processAliases (tree, parent) {
-    /*if (!tree.alias) {
-        tree.alias = tree.name.toLowerCase();
+`function processAliasesAndAST (tree, parent) {
+    if (!tree.properties.alias) {
+        tree.properties.alias = tree.name;
     }
-    tree.children.map(child => processAliases(child, tree));
+    tree.type = tree.name;
+
+    let tempValue = tree.value;
+    delete tree.value;
+    tree.value = tempValue;
+
+    if (tree.children.length > 0) {
+        tree.contents = {};
+    } else {
+        tree.contents = null;
+    }
+
+    tree.children.map(child => processAliasesAndAST(child, tree));
+    
     if (parent) {
-        parent[tree.alias] = tree.children;
-    }*/
+        if (parent.contents[tree.properties.alias] && !Array.isArray(parent.contents[tree.properties.alias])) {
+            var temp = parent.contents[tree.properties.alias];
+            parent.contents[tree.properties.alias] = [];
+            parent.contents[tree.properties.alias].push(temp);
+            parent.contents[tree.properties.alias].push(tree);
+        } else if (parent.contents[tree.properties.alias] && Array.isArray(parent.contents[tree.properties.alias])) {
+            parent.contents[tree.properties.alias].push(tree);
+        } else if (parent.contents[tree.properties.alias]) {
+            console.error('alias name collision');
+            console.log(tree);
+            console.log(parent.contents);
+            process.exit(1); // TODO
+        } else {
+            parent.contents[tree.properties.alias] = tree;
+        }
+    }
+    delete tree.children;
+    delete tree.properties;
+    delete tree.name;
 }`
 
 // TODO should move to another module which post-processes and effects parse-tree => AST
@@ -151,7 +190,7 @@ sc +=
 `function postProcessTree (tree) {
     console.log(\`postProcess \${tree.name}\`);
     processAbstract(tree);
-    //processAliases(tree, null);
+    processAliasesAndAST(tree, null);
 }\n\n`;
 
     sc += gen

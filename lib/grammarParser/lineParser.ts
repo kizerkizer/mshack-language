@@ -249,7 +249,7 @@ const lineParsers: ILineParserFunction[] = [
     tryParseDirective,
 ];
 
-const commentRE = /;([^\n]*)$/g;
+const commentRE = /[^\\];([^\n]*)$/g;
 
 const extractComment = (line: string) => {
     let comment = null,
@@ -277,6 +277,7 @@ const isIgnorableLine = (line: string) => {
 const parseLine = (line: string, lineNumber: number) => {
     let parsedLine = null;
     let { uncommentedLine, comment } = extractComment(line);
+    uncommentedLine = uncommentedLine.replace(/\\;/g, `;`);
 
     if (isIgnorableLine(uncommentedLine)) {
         return false;

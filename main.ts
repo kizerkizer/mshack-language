@@ -9,7 +9,8 @@ const main = () => {
 
 let code2 =
 `abcdefg      <- 
-    "bar"`;
+    "bar";
+("foobar");`;
     let result = parse(code2);
     //console.log(JSON.stringify(result, null, 4));
    
