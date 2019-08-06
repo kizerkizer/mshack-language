@@ -8,3 +8,8 @@ contextual elements:
     - 'the first object'
 => a form of contextual typing? local functions know what 'the source code' is. 
 definite article vs indefinite (class); i.e., it is a dog (class), vs it is the dog (identity)
+
+
+absence type -> (absent Tree; absent Integer;) effectively typed nulls - classic null eq to absent Object
+absent type always allowed where regular type is
+default value of declaration is absence of type.

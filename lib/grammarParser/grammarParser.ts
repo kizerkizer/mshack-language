@@ -22,6 +22,7 @@ interface IProduction extends IParsedGrammarElement {
     derivations: IDerivation[];
     isEntryProduction: boolean;
     isAbstractProduction: boolean;
+    alias: null | string;
 }
 
 interface IDirective extends IParsedGrammarElement {
@@ -49,12 +50,14 @@ const resetCtx = (ctx) => {
     ctx.currentDerivations = [];
     ctx.currentProductionIsAbstract = false;
     ctx.currentProductionIsEntry = false;
+    ctx.currentProductionAlias = null;
 };
 
 const updateCtx = (ctx, productionLine) => {
     ctx.currentProduction = productionLine.name;
     ctx.currentProductionIsAbstract = productionLine.isAbstract;
     ctx.currentProductionIsEntry = productionLine.isEntry;
+    ctx.currentProductionAlias = productionLine.alias;
 };
 
 const pushCurrentProduction = (grammar, ctx) => {
@@ -64,7 +67,8 @@ const pushCurrentProduction = (grammar, ctx) => {
         type: 'Production',
         derivations: Array.from(ctx.currentDerivations),
         isEntryProduction: ctx.currentProductionIsEntry,
-        isAbstractProduction: ctx.currentProductionIsAbstract
+        isAbstractProduction: ctx.currentProductionIsAbstract,
+        alias: ctx.currentProductionAlias + ``
     } as IProduction);
     resetCtx(ctx);
 };
@@ -78,7 +82,8 @@ const parseLines = (lines: Line[]) => {
             currentProduction: null,
             currentDerivations: [],
             currentProductionIsAbstract: false,
-            currentProductionIsEntry: false
+            currentProductionIsEntry: false,
+            currentProductionAlias: null
         };
     
     lines.map((line: Line, i) => {

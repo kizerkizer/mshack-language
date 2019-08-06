@@ -3,7 +3,7 @@ const builtInTerminals = {
         parseFn: `function parseTerminal_newline (parameters: string[]) {
             if (source[index + scout] === \`\\n\`) {
                 scout++;
-                return node(\`NewLine\`, \`\\n\`, []);
+                return node(\`newline\`, \`\\n\`, []);
             }
             return false;
         }`
@@ -11,7 +11,7 @@ const builtInTerminals = {
     'eof': {
         parseFn: `function parseTerminal_eof (parameters: string[]) {
             if (index === source.length) {
-                return node(\`EndOfFile\`, null, []);
+                return node(\`eof\`, null, []);
             }
             return false;
         }`
@@ -20,13 +20,13 @@ const builtInTerminals = {
         parseFn: `function parseTerminal_space (parameters: string[]) {
             if (source[index + scout] === \` \`) {
                 scout++;
-                return node(\`Space\`, \` \`, []);
+                return node(\`space\`, \` \`, []);
             }
             return false;
         }`
     },
     'whitespace': {
-        parseFn: `function parseTerminal_whitespace (parameters: string[]) {
+        parseFn: `function parseTerminal_whitespace (parameters: string[], alias: string) {
             console.log(\`parseTerminal_whitespace; parameters=\`);
             console.log(parameters);
             let i, epsilon;
@@ -38,14 +38,14 @@ const builtInTerminals = {
                 }
             }
             scout += i;
-            return node(\`Whitespace\`, source.slice(index + scout - i, index + scout), []);
+            return node(\`whitespace\`, source.slice(index + scout - i, index + scout), []);
         }`
     },
     'empty': {
-        parseFn: `function parseTerminal_empty (parameters: string[]) { return node (\`Empty\`, \`\`, []);}\n`
+        parseFn: `function parseTerminal_empty (parameters: string[], alias: string) { return node (\`empty\`, \`\`, []);}\n`
     },
     'alpha': {
-        parseFn: `function parseTerminal_alpha (parameters: string[]) {
+        parseFn: `function parseTerminal_alpha (parameters: string[], alias: string) {
             let i;
             for (i = 0; index + scout + i < source.length; i++) {
                 if (/[a-zA-Z]/.test(source[index + scout + i])) {
@@ -58,7 +58,11 @@ const builtInTerminals = {
                 return false;
             }
             scout += i;
-            return node(\`Alpha\`, source.slice(index + scout - i, index + scout), []);
+            return node(\`alpha\`, source.slice(index + scout - i, index + scout), [], {
+                isEntry: false,
+                isAbstract: false,
+                alias: \`\${alias}\`
+            });
         }`
     }
 };

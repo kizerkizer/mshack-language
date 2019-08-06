@@ -8,15 +8,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; terminals
-!terminal <dquote> "
-!terminal <squote> '
-
+;;;; terminals
+; grouping
 !terminal <parenl> (
 !terminal <parenr> )
+!terminal <dquote> "
+!terminal <squote> '
+; operators
+!terminal <operatorassignment> <-
 
-; grammar
-$Program
+;;;; grammar
+$Program=program
     |ExpressionList <eof>
 
 ExpressionList
@@ -24,11 +26,24 @@ ExpressionList
 
 abstract Expression
     |ExpressionAssignment
+    |ExpressionGroup
+    |ExpressionLiteral
+    
+ExpressionGroup
     |(<parenl>) Expression (<parenr>)
-    |(<dquote>) <alpha> (<dquote>)
+
+ExpressionLiteral
+    |Literal
+
+abstract Literal
+    |StringLiteral
+ 
+StringLiteral
+    |(<dquote>) <alpha>=value (<dquote>)
+    |(<squote>) <alpha>=value (<squote>)
 
 ExpressionAssignment
-    |Identifier (<whitespace[nonempty]>) "<-" (<whitespace[nonempty]>) Expression
+    |Identifier=left_hand_side (<whitespace[nonempty]>) (<operatorassignment>) (<whitespace[nonempty]>) Expression=right_hand_side
 
 Identifier
-    |"foo"
+    |<alpha>=value

@@ -8,7 +8,8 @@ const evaluate = (node) => {
 const main = () => {
 
 let code2 =
-`foo <- "bar"`;
+`abcdefg      <- 
+    "bar"`;
     let result = parse(code2);
     //console.log(JSON.stringify(result, null, 4));
    

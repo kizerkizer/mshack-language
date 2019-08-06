@@ -35,12 +35,14 @@ class ProductionLine extends Line {
     private _name: string;
     private _isAbstract: boolean;
     private _isEntry: boolean;
+    private _alias: string | null;
     
-    constructor (name: string, isAbstract: boolean, isEntry: boolean) {
+    constructor (name: string, isAbstract: boolean, isEntry: boolean, alias: string | null) {
         super(LineType.ProductionLine);
         this._name = name;
         this._isAbstract = isAbstract;
         this._isEntry = isEntry;
+        this._alias = alias;
     }
     
     get name () {
@@ -54,11 +56,16 @@ class ProductionLine extends Line {
     get isEntry () {
         return this._isEntry;
     }
+
+    get alias () {
+        return this._alias;
+    }
 };
 
 interface IParsedTarget extends IParsedGrammarElement {
     quantifier: string;
     isPresence: boolean;
+    alias: null | string;
     parameters: string[];
 }
 
@@ -96,16 +103,34 @@ interface ILineParserFunction {
 
 const tryParseProduction: ILineParserFunction = (line) => {
     let isAbstract = false,
-        isEntry = false;
+        isEntry = false,
+        alias = null;
+
     if (line.startsWith(`abstract`)) {
         line = line.replace(`abstract`, ``).trim();
         isAbstract = true;
     }
+
+    // handle alias
+    let aliasSplit = line.split(`=`);
+    if (aliasSplit.length === 2) {
+        [line, alias] = aliasSplit;
+        if (!/[a-zA-Z_]+/.test(alias)) {
+            console.error(`Invalid alias "${alias}"`);
+            process.exit(1); // TODO
+        } else if (isAbstract) {
+            console.error(`Cannot alias an abstract production`);
+            process.exit(1); // TODO
+        } else {
+            console.log(`alias "${alias}" for production line "${line}" detected`)
+        }
+    }
+    
     if (line.charAt(0) === `$`) {
         isEntry = true;
     }
     if (/[$A-Za-z]/.test(line.charAt(0))) {
-        const parsedLine = new ProductionLine(line, isAbstract, isEntry);
+        const parsedLine = new ProductionLine(line, isAbstract, isEntry, alias);
         return parsedLine;
     }
     return false;
@@ -116,10 +141,28 @@ let nonterminalParamsRE = /\[([a-z\s]+)\]/;
 const parseDerivationTargets = (unparsedTargets: string[]): IParsedTarget[] => {
     return unparsedTargets.map((target) => {
 
+        // handle alias
+        let aliasSplit = target.split(`=`),
+            alias = null;
+            
+        if (aliasSplit.length === 2) {
+            [target, alias] = aliasSplit;
+            if (!/[a-zA-Z_]+/.test(alias)) {
+                console.error(`Invalid alias "${alias}"`);
+                process.exit(1); // TODO
+            } else {
+                console.log(`alias "${alias}" for "${target}" detected`)
+            }
+        }
+
         // handle presence target
         let matchResult = null,
             isPresence = false;
         if (matchResult = target.match(/\(([^\)]+)\)/)) {
+            if (alias !== null) {
+                console.error(`Cannot alias a presence target`);
+                process.exit(1); // TODO
+            }
             console.log(`presence target ${target} detected`);
             target = target.replace(/\(([^\)]+)\)/, matchResult[1]);
             isPresence = true;
@@ -141,6 +184,7 @@ const parseDerivationTargets = (unparsedTargets: string[]): IParsedTarget[] => {
                 value: raw,
                 quantifier: q,
                 isPresence,
+                alias,
                 parameters: []
             };
         } else if (target.startsWith(`<`)) {
@@ -157,6 +201,7 @@ const parseDerivationTargets = (unparsedTargets: string[]): IParsedTarget[] => {
                 value: raw,
                 quantifier: q,
                 isPresence,
+                alias,
                 parameters
             };
         } else {
@@ -165,6 +210,7 @@ const parseDerivationTargets = (unparsedTargets: string[]): IParsedTarget[] => {
                 value: target,
                 quantifier: q,
                 isPresence,
+                alias,
                 parameters: []
             };
         }
