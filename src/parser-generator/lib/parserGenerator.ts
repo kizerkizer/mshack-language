@@ -1,16 +1,16 @@
 import {
     SourceCodeBuilder
-} from '../codeGenerationLib';
+} from '../../../libOLD/codeGenerationLib';
 
 import {
     IGrammar, IDerivation, IParsedTarget, IProduction
-} from '../grammarParser/grammarParser';
+} from '../../grammar-parser/lib/grammarParser';
 
 import
     builtInTerminals
 from './builtInTerminals';
 
-import IParsedGrammarElement from '../grammarParser/IParsedGrammarElement';
+import IParsedGrammarElement from '../../grammar-parser/lib/IParsedGrammarElement';
 
 const gen = new SourceCodeBuilder({
     tabWidth: 4

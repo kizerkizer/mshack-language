@@ -4,11 +4,11 @@ from 'fs';
 
 import {
     parseGrammar
-} from './lib/grammarParser/grammarParser';
+} from './src/grammar-parser/lib/grammarParser';
 
 import {
     generateParser
-} from './lib/parserGenerator/parserGenerator';
+} from './src/parser-generator/lib/parserGenerator';
 
 const grammarSource: string = fs.readFileSync(`./kizerlang.kzrgrammar`, `utf8`);
 

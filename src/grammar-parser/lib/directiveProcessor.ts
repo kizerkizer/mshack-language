@@ -1,4 +1,4 @@
-import { IGrammar } from "../parserGenerator/parserGenerator";
+import { IGrammar } from "../../parser-generator/lib/parserGenerator";
 
 import { IDirective } from "./grammarParser";
 

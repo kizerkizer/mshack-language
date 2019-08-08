@@ -1,6 +1,7 @@
 import
     IParsedGrammarElement
 from './IParsedGrammarElement';
+import { LineProvider } from './lineProvider';
 
 enum LineType {
     ProductionLine,
@@ -298,9 +299,12 @@ const parseLine = (line: string, lineNumber: number) => {
     return parsedLine;
 };
 
-const getLines = (grammarSourceCode: string) => {
-    //const lines = grammarSourceCode.replace(/;[^\n]*\n/g, `\n`).trim().split(`\n`);
-    const lines = grammarSourceCode.replace(/\r/g, ``).split(`\n`);
+const getLines = (lineProvider: LineProvider) => {
+    let lines = [],
+        line;
+    while (line = lineProvider.next()) {
+        lines.push(line);
+    }
     const parsedLines = lines.map(parseLine).filter(line => !!line);
     return parsedLines;
 };
