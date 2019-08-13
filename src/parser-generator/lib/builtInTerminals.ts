@@ -1,3 +1,4 @@
+// TODO delete this file
 const builtInTerminals = {
     'newline': {
         parseFn: `function parseTerminal_newline (parameters: string[]) {

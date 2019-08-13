@@ -139,34 +139,47 @@ const tryParseProduction: ILineParserFunction = (line) => {
 
 let nonterminalParamsRE = /\[([a-z\s]+)\]/;
 
+function parseAlias (target: string) {
+    let aliasSplit = target.split(`=`),
+        alias = null;
+        
+    if (aliasSplit.length === 2) {
+        [target, alias] = aliasSplit;
+        if (!/[a-zA-Z_]+/.test(alias)) {
+            console.error(`Invalid alias "${alias}"`);
+            return false;
+        } else {
+            console.log(`alias "${alias}" for "${target}" detected`)
+            return alias;
+        }
+    }
+    
+    return false;
+}
+
+function parsePresence (target: string) {
+    let matchResult = null,
+        isPresence = false;
+    if (matchResult = target.match(/\(([^\)]+)\)/)) {
+        console.log(`presence target ${target} detected`);
+        target = target.replace(/\(([^\)]+)\)/, matchResult[1]);
+        isPresence = true;
+    }
+    return isPresence;
+}
+
 const parseDerivationTargets = (unparsedTargets: string[]): IParsedTarget[] => {
     return unparsedTargets.map((target) => {
 
         // handle alias
-        let aliasSplit = target.split(`=`),
-            alias = null;
-            
-        if (aliasSplit.length === 2) {
-            [target, alias] = aliasSplit;
-            if (!/[a-zA-Z_]+/.test(alias)) {
-                console.error(`Invalid alias "${alias}"`);
-                process.exit(1); // TODO
-            } else {
-                console.log(`alias "${alias}" for "${target}" detected`)
-            }
-        }
+        let alias = parseAlias(target);
 
         // handle presence target
-        let matchResult = null,
-            isPresence = false;
-        if (matchResult = target.match(/\(([^\)]+)\)/)) {
-            if (alias !== null) {
-                console.error(`Cannot alias a presence target`);
-                process.exit(1); // TODO
-            }
-            console.log(`presence target ${target} detected`);
-            target = target.replace(/\(([^\)]+)\)/, matchResult[1]);
-            isPresence = true;
+        let isPresence = parsePresence(target);
+
+        if (isPresence && alias !== null) {
+            console.error(`Cannot alias a presence target`);
+            process.exit(1); // TODO
         }
 
         // handle quantifier
